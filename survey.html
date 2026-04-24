@@ -3,80 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interesting Survey</title>
-    
+    <title>Ultimate Personality & IQ Vault</title>
     <style>
+        :root {
+            --primary: #4e54c8;
+            --secondary: #8f94fb;
+            --bg: #f0f2f5;
+            --card: #ffffff;
+            --text: #333;
+        }
+
         body {
-            background-color: #1a1a2e;
-            color: white;
-            font-family: sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(to right, #4e54c8, #8f94fb);
             margin: 0;
+            padding: 20px;
+            color: var(--text);
         }
-        .survey-container {
-            background-color: #16213e;
-            padding: 40px;
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: var(--card);
             border-radius: 15px;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
-            text-align: center;
-            width: 85%;
-            max-width: 500px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        button {
-            background-color: #e94560;
-            color: white;
+
+        h1 { text-align: center; color: var(--primary); }
+
+        /* Tabs Styling */
+        .tabs {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
             border: none;
-            padding: 15px 25px;
-            margin: 10px;
-            border-radius: 5px;
+            background: none;
             cursor: pointer;
             font-weight: bold;
-            font-size: 16px;
+            color: #777;
+            transition: 0.3s;
         }
-        button:hover {
-            background-color: #0f3460;
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+
+        /* Question Styling */
+        .question-block {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .options-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            gap: 5px;
+        }
+
+        .option-label {
+            font-size: 12px;
+            text-align: center;
+            flex: 1;
+        }
+
+        input[type="radio"] { cursor: pointer; width: 18px; height: 18px; }
+
+        .submit-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        #result-area {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: #eef2ff;
+            border-radius: 10px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
 
-    <div class="survey-container">
-        <h1 id="question-text">Loading...</h1>
-        <div class="options">
-            <button onclick="nextQuestion('Yes')">Yes</button>
-            <button onclick="nextQuestion('No')">No</button>
-            <button onclick="nextQuestion('Maybe')">Maybe</button>
-        </div>
-        <p id="progress">Question 1</p>
+<div class="container">
+    <h1>Human Analysis Vault</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('personality')">Personality</button>
+        <button class="tab-btn" onclick="showTab('logic')">Logic/IQ</button>
+        <button class="tab-btn" onclick="showTab('social')">Social</button>
+        <button class="tab-btn" onclick="showTab('danger')">Instinct</button>
     </div>
 
-    <script>
-        const questions = [
-            "Do you like to solve mysteries?",
-            "Are you good at noticing small details?",
-            "Do you make decisions based on logic?"
-        ];
+    <form id="survey-form">
+        <div id="questions-container">
+            </div>
+        <button type="button" class="submit-btn" onclick="calculateResult()">Analyze My Profile</button>
+    </form>
 
-        let currentStep = 0;
+    <div id="result-area">
+        <h2 id="result-title">Analysis Result</h2>
+        <p id="result-text"></p>
+        <button onclick="location.reload()" style="padding:10px; cursor:pointer;">Restart Analysis</button>
+    </div>
+</div>
 
-        function nextQuestion(answer) {
-            currentStep++;
-            if (currentStep < questions.length) {
-                document.getElementById("question-text").innerText = questions[currentStep];
-                document.getElementById("progress").innerText = `Question ${currentStep + 1} of ${questions.length}`;
-            } else {
-                document.querySelector(".survey-container").innerHTML = `
-                    <h1>Analysis Complete!</h1>
-                    <p>Based on your choices, you have a high "Detective" IQ level!</p>
-                    <button onclick="location.reload()">Try Again</button>
-                `;
-            }
+<script>
+    const data = {
+        personality: [
+            "I enjoy being the center of attention.",
+            "I prefer a messy room over an organized one.",
+            "I often finish my work way before the deadline.",
+            "I feel energized after spending time with people.",
+            "I like to try new things even if they are scary.",
+            "I focus more on details than the big picture.",
+            "I make decisions based on feelings rather than facts.",
+            "I find it easy to stay relaxed under pressure.",
+            "I enjoy dreaming about the future more than living in the present.",
+            "I prefer working alone than in a team."
+        ],
+        logic: [
+            "I can easily spot patterns in numbers.",
+            "I enjoy solving riddles and brain teasers.",
+            "I think logically even when I am angry.",
+            "I prefer science and math over art.",
+            "I double-check everything before making a move.",
+            "I can visualize objects in 3D easily.",
+            "I enjoy debating with others.",
+            "I am good at strategy games like chess.",
+            "I like to know how machines work.",
+            "I believe there is always a correct answer."
+        ]
+        // You can add more categories here later!
+    };
+
+    let currentCategory = 'personality';
+
+    function showTab(cat) {
+        currentCategory = cat;
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        loadQuestions();
+    }
+
+    function loadQuestions() {
+        const container = document.getElementById('questions-container');
+        container.innerHTML = "";
+        
+        data[currentCategory].forEach((q, index) => {
+            container.innerHTML += `
+                <div class="question-block">
+                    <p><strong>${index + 1}. ${q}</strong></p>
+                    <div class="options-row">
+                        <div class="option-label"><input type="radio" name="q${index}" value="1"><br>Strongly Disagree</div>
+                        <div class="option-label"><input type="radio" name="q${index}" value="2"><br>Disagree</div>
+                        <div class="option-label"><input type="radio" name="q${index}" value="3" checked><br>Neutral</div>
+                        <div class="option-label"><input type="radio" name="q${index}" value="4"><br>Agree</div>
+                        <div class="option-label"><input type="radio" name="q${index}" value="5"><br>Strongly Agree</div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function calculateResult() {
+        document.getElementById('survey-form').style.display = 'none';
+        const resultArea = document.getElementById('result-area');
+        resultArea.style.display = 'block';
+        
+        // This is where you can customize the "Analysis"
+        if(currentCategory === 'personality') {
+            document.getElementById('result-text').innerText = "You have a 'Dynamic Strategist' profile. You are capable of handling high-stress situations with ease.";
+        } else {
+            document.getElementById('result-text').innerText = "Your Logic Score is in the top 15%. You have a highly analytical mind.";
         }
-        // Start the first question
-        document.getElementById("question-text").innerText = questions[0];
-    </script>
+    }
+
+    // Initial Load
+    loadQuestions();
+</script>
+
 </body>
 </html>
