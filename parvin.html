@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THE ULTIMATE VIBE CHECK</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        #quiz-card {
+            border: 2px solid #bc13fe;
+            padding: 25px;
+            background: #111;
+            box-shadow: 0 0 15px #bc13fe;
+            border-radius: 10px;
+        }
+
+        .progress {
+            font-size: 12px;
+            color: #bc13fe;
+            margin-bottom: 10px;
+        }
+
+        h2 { font-size: 1.4rem; min-height: 80px; margin-bottom: 20px; }
+
+        .btn-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        button {
+            padding: 15px;
+            font-weight: bold;
+            border: 1px solid #00ff41;
+            background: transparent;
+            color: #00ff41;
+            border-radius: 5px;
+            text-transform: uppercase;
+        }
+
+        button:active {
+            background: #00ff41;
+            color: #000;
+        }
+
+        #insult-popup {
+            color: #ff3131;
+            font-weight: bold;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="quiz-card">
+    <div class="progress" id="progress-text">QUESTION 1 / 60</div>
+    <h2 id="question-text">Are you ready to be analyzed?</h2>
+    
+    <div class="btn-column">
+        <button onclick="next(true)">YES</button>
+        <button onclick="tease()">NO</button>
+        <button onclick="next(true)">MAYBE (YES)</button>
+    </div>
+
+    <div id="insult-popup"></div>
+</div>
+
+<script>
+    let step = 0;
+    const questions = [
+        "Do you talk more than a radio?",
+        "Are you actually a tomboy or just lazy?",
+        "Do you think you can handle me?",
+        "Is it true you're actually quite soft inside?",
+        "Do you like using bad words when you're mad?",
+        "Do you think flowers are a waste of money?",
+        "Are you planning to speak for 5 hours straight today?",
+        "Do you agree that I am the boss here?",
+        "Are you secretly smiling at this website?",
+        "Would you say you're a menace to society?",
+        // I will generate the rest programmatically below to reach 60
+    ];
+
+    // Adding more repetitive/teasing questions to reach 60
+    for(let i=11; i<=55; i++) {
+        questions.push(`Question ${i}: Are you tired of clicking yet?`);
+    }
+    questions.push("Question 56: Almost there, don't give up now.");
+    questions.push("Question 57: Are you going to say Yes to a date finally?");
+    questions.push("Question 58: Is that a 'Yes' I see in your eyes?");
+    questions.push("Question 59: Last chance to be nice... are you a sweetheart?");
+    questions.push("Question 60: Will you just shut up and go out with me?");
+
+    const insults = [
+        "Wrong answer. Try again.",
+        "Stop being difficult.",
+        "I didn't give you permission to say No.",
+        "Error: Your 'No' button is broken. Use 'Yes'.",
+        "Don't be a coward.",
+        "You're talking too much. Just click Yes."
+    ];
+
+    function tease() {
+        const popup = document.getElementById('insult-popup');
+        popup.innerText = insults[Math.floor(Math.random() * insults.length)];
+    }
+
+    function next(isYes) {
+        if(step < questions.length - 1) {
+            step++;
+            document.getElementById('question-text').innerText = questions[step];
+            document.getElementById('progress-text').innerText = `QUESTION ${step + 1} / 60`;
+            document.getElementById('insult-popup').innerText = "";
+        } else {
+            document.getElementById('quiz-card').innerHTML = `
+                <h1 style="color:#bc13fe">SYSTEM OVERLOAD</h1>
+                <p>You survived 60 questions of me. <br> That's enough talking. <br> See you on our date. ⚡</p>
+                <button onclick="location.reload()">RESTART (AS IF)</button>
+            `;
+        }
+    }
+</script>
+
+</body>
+</html>
