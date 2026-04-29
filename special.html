@@ -3,126 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Vault | Strictly for Her</title>
+    <title>THE VAULT | UNAUTHORIZED ACCESS</title>
     <style>
+        :root {
+            --neon-green: #00ff41;
+            --neon-purple: #bc13fe;
+            --danger-red: #ff3131;
+        }
+
         body {
-            background-color: #0d0d0d;
-            color: #fff;
-            font-family: 'Courier New', Courier, monospace;
+            background-color: #050505;
+            color: white;
+            font-family: 'Segoe UI', Impact, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            overflow-x: hidden;
+            overflow: hidden;
         }
 
-        .main-card {
-            width: 90%;
-            max-width: 450px;
-            background: #1a1a1a;
-            border: 3px solid #bc13fe; /* Neon Purple */
-            box-shadow: 0 0 15px #bc13fe, inset 0 0 15px #bc13fe;
+        /* The Main Console */
+        .console {
+            width: 95%;
+            max-width: 500px;
+            border: 2px solid var(--neon-purple);
             padding: 30px;
-            border-radius: 2px;
+            background: rgba(20, 20, 20, 0.9);
+            box-shadow: 0 0 20px var(--neon-purple);
+            position: relative;
+        }
+
+        .header {
             text-align: center;
-        }
-
-        h1 {
-            color: #00ff41; /* Matrix Green */
-            text-transform: uppercase;
-            letter-spacing: 5px;
-            font-size: 1.8rem;
+            border-bottom: 1px solid #444;
             margin-bottom: 20px;
+            padding-bottom: 10px;
         }
 
-        .status-box {
-            background: #262626;
+        h1 { font-size: 1.5rem; letter-spacing: 3px; color: var(--neon-green); }
+
+        /* The Interactive Sections */
+        .status-panel {
+            font-family: monospace;
+            background: #000;
             padding: 15px;
+            border-left: 4px solid var(--neon-purple);
             margin-bottom: 20px;
-            border-left: 5px solid #00ff41;
-            text-align: left;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
-        .btn-zone {
+        .action-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 10px;
         }
 
-        button {
-            background: transparent;
-            border: 2px solid #bc13fe;
-            color: #bc13fe;
-            padding: 10px;
+        .btn {
+            padding: 12px;
+            background: black;
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
             cursor: pointer;
             font-weight: bold;
-            text-transform: uppercase;
-            transition: 0.3s;
+            transition: 0.2s;
         }
 
-        button:hover {
-            background: #bc13fe;
-            color: #000;
-            box-shadow: 0 0 20px #bc13fe;
+        .btn:hover {
+            background: var(--neon-green);
+            color: black;
+            box-shadow: 0 0 15px var(--neon-green);
         }
 
-        #display-msg {
+        /* Special Effects Area */
+        #main-display {
             margin-top: 25px;
+            padding: 20px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            border: 1px solid #333;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+        }
+
+        /* The "Chaos" Button */
+        .chaos-btn {
+            width: 100%;
+            margin-top: 15px;
+            border: 1px solid var(--danger-red);
+            color: var(--danger-red);
             padding: 15px;
-            min-height: 50px;
-            border: 1px dashed #555;
-            color: #00ff41;
-            font-weight: bold;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 900;
         }
 
-        .glitch {
-            animation: glitch 1s linear infinite;
+        .chaos-btn:hover {
+            background: var(--danger-red);
+            color: white;
+            animation: shake 0.5s infinite;
         }
 
-        @keyframes glitch {
-            2%, 64% { transform: translate(2px, 0) skew(0deg); }
-            4%, 60% { transform: translate(-2px, 0) skew(0deg); }
-            62% { transform: translate(0, 0) skew(5deg); }
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            40% { transform: translate(3px, 2px) rotate(-1deg); }
+            100% { transform: translate(1px, -2px) rotate(0deg); }
         }
     </style>
 </head>
 <body>
 
-<div class="main-card">
-    <h1 class="glitch">SYSTEM DETECTED: [HER NAME]</h1>
-    
-    <div class="status-box">
-        > TYPE: 100% Chaos<br>
-        > VIBE: Active / Sharp / Real<br>
-        > STATUS: Unlike the others.
+<div class="console" id="console">
+    <div class="header">
+        <h1>SYSTEM DETECTED: [INSERT HER NAME]</h1>
+        <small style="color: #666;">SCANNING PERSONALITY... 100% CHAOTIC</small>
     </div>
 
-    <p>Select an Action:</p>
-    
-    <div class="btn-zone">
-        <button onclick="updateMsg('compliment')">Truth</button>
-        <button onclick="updateMsg('rude')">Don't Click</button>
-        <button onclick="updateMsg('active')">Energy Check</button>
-        <button onclick="updateMsg('vibe')">The Vibe</button>
+    <div class="status-panel">
+        > ACTIVITY LEVEL: EXTREME<br>
+        > VERBAL STYLE: AGGRESSIVE/SHARP<br>
+        > LIKES: REAL TALK, NO FLOWERS
     </div>
 
-    <div id="display-msg">Waiting for input...</div>
+    <div class="action-grid">
+        <button class="btn" onclick="say('vibe')">THE VIBE</button>
+        <button class="btn" onclick="say('compliment')">REAL TALK</button>
+        <button class="btn" onclick="say('rude')">GET INSULTED</button>
+        <button class="btn" onclick="say('active')">SPEED CHECK</button>
+    </div>
+
+    <div id="main-display">CHOOSE AN OPTION... IF YOU DARE</div>
+
+    <button class="chaos-btn" onclick="activateChaos()">DO NOT PRESS: CHAOS MODE</button>
 </div>
 
 <script>
-    function updateMsg(type) {
-        const msgBox = document.getElementById('display-msg');
-        
-        const responses = {
-            compliment: "You're actually the coolest person I've met. No cap.",
-            rude: "Stop clicking me! Go do something productive, you menace. (JK, stay here).",
-            active: "Detected: High speed, high energy. Can't even keep up with you.",
-            vibe: "Flowers are boring. You're better than that. ⚡"
+    function say(type) {
+        const display = document.getElementById('main-display');
+        const msgs = {
+            vibe: "You're not 'girly' and that's why you're better. ⚡",
+            compliment: "Most people are boring. You're a hurricane. Stay loud. 🔥",
+            rude: "What are you looking at? Get out of here! (But actually don't). 🙄",
+            active: "Warning: Subject moves too fast for normal humans to handle. 🏃‍♀️"
         };
+        display.innerHTML = msgs[type];
+        display.style.color = "var(--neon-green)";
+    }
 
-        msgBox.innerText = responses[type];
+    function activateChaos() {
+        const body = document.body;
+        const display = document.getElementById('main-display');
+        
+        display.innerHTML = "SYSTEM OVERLOAD: SHE'S TOO ACTIVE!";
+        display.style.color = "var(--danger-red)";
+        
+        // Flash the background
+        let flashes = 0;
+        const interval = setInterval(() => {
+            body.style.backgroundColor = flashes % 2 === 0 ? "#1a0000" : "#050505";
+            flashes++;
+            if(flashes > 10) {
+                clearInterval(interval);
+                body.style.backgroundColor = "#050505";
+            }
+        }, 100);
     }
 </script>
 
