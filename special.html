@@ -3,113 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYSTEM OVERRIDE</title>
+    <title>Critical Choice Required</title>
     <style>
         body {
-            background-color: #0a0a0a;
-            color: #00ff41; /* Matrix Green */
-            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
+            background-color: #0d0d0d; /* Dark high-energy background */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden;
         }
 
-        .box {
+        .card {
+            background: #1a1a1a;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(188, 19, 254, 0.3);
             text-align: center;
-            padding: 40px;
-            border: 2px solid #bc13fe; /* Neon Purple */
-            background: #111;
-            box-shadow: 0 0 20px #bc13fe;
-            border-radius: 10px;
+            border: 2px solid #bc13fe;
             width: 350px;
-            position: relative;
         }
 
-        h1 { font-size: 1.5rem; text-transform: uppercase; margin-bottom: 30px; }
+        h1 {
+            color: #fff;
+            font-size: 1.8rem;
+            margin-bottom: 30px;
+        }
 
-        .btn-container {
+        .btn-group {
             display: flex;
-            justify-content: space-around;
-            align-items: center;
-            margin-top: 20px;
-            height: 100px;
+            justify-content: center;
+            gap: 20px;
         }
 
         button {
-            padding: 15px 25px;
-            font-weight: bold;
-            text-transform: uppercase;
-            cursor: pointer;
-            border: none;
-            transition: 0.2s;
-        }
-
-        #yes-btn {
-            background: #00ff41;
-            color: black;
-        }
-
-        #no-btn {
-            background: #ff3131;
-            color: white;
-            position: absolute; /* Needed for movement */
-        }
-
-        #result {
-            display: none;
-            margin-top: 20px;
+            padding: 15px 35px;
             font-size: 1.2rem;
-            color: #bc13fe;
-            animation: pulse 1s infinite;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.1s;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+        #yesBtn {
+            background-color: #00ff41;
+            color: #000;
+        }
+
+        #noBtn {
+            background-color: #ff3131;
+            color: #fff;
+            position: absolute; /* Allows it to jump around */
+        }
+
+        #success-msg {
+            display: none;
+            color: #bc13fe;
+            font-size: 1.5rem;
+            font-weight: bold;
+            animation: pop 0.5s ease;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <h1 id="question">Will you go out with me? <br>(Don't be a coward)</h1>
-    
-    <div class="btn-container">
-        <button id="yes-btn" onclick="sayYes()">YES</button>
-        <button id="no-btn" onmouseover="moveNo()" onclick="moveNo()">NO</button>
+    <div class="card" id="mainCard">
+        <h1 id="question">Will you go on a date with me?</h1>
+        <div class="btn-group" id="buttons">
+            <button id="yesBtn" onclick="celebrate()">YES</button>
+            <button id="noBtn" onmouseover="moveButton()" onclick="moveButton()">NO</button>
+        </div>
+        <div id="success-msg">
+            Heh. I knew you'd say yes. <br> Stop talking and get ready. ⚡
+        </div>
     </div>
 
-    <div id="result">
-        I KNEW IT! <br> Get ready, we're going out. ⚡
-    </div>
-</div>
+    <script>
+        const noBtn = document.getElementById('noBtn');
+        const question = document.getElementById('question');
+        const buttons = document.getElementById('buttons');
+        const successMsg = document.getElementById('success-msg');
 
-<script>
-    function moveNo() {
-        const btn = document.getElementById('no-btn');
-        // Calculate random position within the window
-        const x = Math.random() * (window.innerWidth - btn.offsetWidth);
-        const y = Math.random() * (window.innerHeight - btn.offsetHeight);
-        
-        btn.style.left = x + 'px';
-        btn.style.top = y + 'px';
-        
-        // Change the text to tease her
-        const phrases = ["Too slow!", "Missed me!", "Try harder!", "Nope!", "Haha!"];
-        btn.innerText = phrases[Math.floor(Math.random() * phrases.length)];
-    }
+        // This function makes the NO button jump away
+        function moveButton() {
+            // Calculate random positions
+            // Subtracting 100 to keep it within the visible screen area
+            const x = Math.random() * (window.innerWidth - 150);
+            const y = Math.random() * (window.innerHeight - 100);
 
-    function sayYes() {
-        document.getElementById('question').style.display = 'none';
-        document.getElementById('no-btn').style.display = 'none';
-        document.getElementById('yes-btn').style.display = 'none';
-        document.getElementById('result').style.display = 'block';
-    }
-</script>
+            noBtn.style.left = `${x}px`;
+            noBtn.style.top = `${y}px`;
+            
+            // Optional: change the question slightly after a few misses
+            question.innerText = "Don't even try it. Just click Yes.";
+        }
 
+        function celebrate() {
+            // Hide the question and buttons
+            question.style.display = 'none';
+            buttons.style.display = 'none';
+            
+            // Show the winning message
+            successMsg.style.display = 'block';
+            
+            // Add some "Chaos" effect
+            document.body.style.backgroundColor = "#1a0033";
+        }
+    </script>
 </body>
 </html>
