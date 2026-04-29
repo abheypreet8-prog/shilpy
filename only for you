@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Vault | Strictly for Her</title>
+    <style>
+        body {
+            background-color: #0d0d0d;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .main-card {
+            width: 90%;
+            max-width: 450px;
+            background: #1a1a1a;
+            border: 3px solid #bc13fe; /* Neon Purple */
+            box-shadow: 0 0 15px #bc13fe, inset 0 0 15px #bc13fe;
+            padding: 30px;
+            border-radius: 2px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #00ff41; /* Matrix Green */
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+        }
+
+        .status-box {
+            background: #262626;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 5px solid #00ff41;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .btn-zone {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        button {
+            background: transparent;
+            border: 2px solid #bc13fe;
+            color: #bc13fe;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #bc13fe;
+            color: #000;
+            box-shadow: 0 0 20px #bc13fe;
+        }
+
+        #display-msg {
+            margin-top: 25px;
+            padding: 15px;
+            min-height: 50px;
+            border: 1px dashed #555;
+            color: #00ff41;
+            font-weight: bold;
+        }
+
+        .glitch {
+            animation: glitch 1s linear infinite;
+        }
+
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px, 0) skew(0deg); }
+            4%, 60% { transform: translate(-2px, 0) skew(0deg); }
+            62% { transform: translate(0, 0) skew(5deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-card">
+    <h1 class="glitch">SYSTEM DETECTED: [HER NAME]</h1>
+    
+    <div class="status-box">
+        > TYPE: 100% Chaos<br>
+        > VIBE: Active / Sharp / Real<br>
+        > STATUS: Unlike the others.
+    </div>
+
+    <p>Select an Action:</p>
+    
+    <div class="btn-zone">
+        <button onclick="updateMsg('compliment')">Truth</button>
+        <button onclick="updateMsg('rude')">Don't Click</button>
+        <button onclick="updateMsg('active')">Energy Check</button>
+        <button onclick="updateMsg('vibe')">The Vibe</button>
+    </div>
+
+    <div id="display-msg">Waiting for input...</div>
+</div>
+
+<script>
+    function updateMsg(type) {
+        const msgBox = document.getElementById('display-msg');
+        
+        const responses = {
+            compliment: "You're actually the coolest person I've met. No cap.",
+            rude: "Stop clicking me! Go do something productive, you menace. (JK, stay here).",
+            active: "Detected: High speed, high energy. Can't even keep up with you.",
+            vibe: "Flowers are boring. You're better than that. ⚡"
+        };
+
+        msgBox.innerText = responses[type];
+    }
+</script>
+
+</body>
+</html>
