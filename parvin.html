@@ -2,134 +2,140 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>THE ULTIMATE VIBE CHECK</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>CAUTION: HIGH VOLTAGE</title>
     <style>
         body {
             background-color: #000;
-            color: #00ff41;
-            font-family: 'Courier New', monospace;
-            text-align: center;
-            padding: 20px;
+            color: #0f0;
+            font-family: 'Arial Black', sans-serif;
             margin: 0;
             display: flex;
-            flex-direction: column;
             justify-content: center;
-            min-height: 100vh;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            transition: background 0.1s;
         }
 
-        #quiz-card {
-            border: 2px solid #bc13fe;
-            padding: 25px;
-            background: #111;
-            box-shadow: 0 0 15px #bc13fe;
-            border-radius: 10px;
+        #container {
+            width: 90%;
+            text-align: center;
+            border: 4px solid #f0f;
+            padding: 20px;
+            box-shadow: 0 0 20px #f0f;
+            background: rgba(0,0,0,0.8);
         }
 
-        .progress {
-            font-size: 12px;
-            color: #bc13fe;
-            margin-bottom: 10px;
+        .progress-bar {
+            height: 10px;
+            background: #333;
+            width: 100%;
+            margin-bottom: 20px;
         }
 
-        h2 { font-size: 1.4rem; min-height: 80px; margin-bottom: 20px; }
+        #fill {
+            height: 100%;
+            background: #f0f;
+            width: 0%;
+            transition: 0.2s;
+        }
 
-        .btn-column {
-            display: flex;
-            flex-direction: column;
+        h2 { font-size: 1.2rem; text-transform: uppercase; margin-bottom: 30px; min-height: 60px; }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr;
             gap: 15px;
         }
 
         button {
-            padding: 15px;
-            font-weight: bold;
-            border: 1px solid #00ff41;
+            padding: 20px;
             background: transparent;
-            color: #00ff41;
-            border-radius: 5px;
+            border: 2px solid #0f0;
+            color: #0f0;
+            font-weight: 900;
+            font-size: 1.1rem;
             text-transform: uppercase;
         }
 
         button:active {
-            background: #00ff41;
+            background: #0f0;
             color: #000;
+            transform: scale(0.95);
         }
 
-        #insult-popup {
-            color: #ff3131;
-            font-weight: bold;
-            margin-top: 15px;
-            font-size: 0.9rem;
-            min-height: 20px;
+        /* Animations */
+        .shake { animation: shake 0.2s infinite; }
+        @keyframes shake {
+            0% { transform: translate(1px, 1px); }
+            50% { transform: translate(-2px, -1px); }
+            100% { transform: translate(1px, 1px); }
         }
     </style>
 </head>
 <body>
 
-<div id="quiz-card">
-    <div class="progress" id="progress-text">QUESTION 1 / 60</div>
-    <h2 id="question-text">Are you ready to be analyzed?</h2>
+<div id="container">
+    <div class="progress-bar"><div id="fill"></div></div>
+    <h2 id="q">INITIATING ANALYSIS... CLICK START</h2>
     
-    <div class="btn-column">
-        <button onclick="next(true)">YES</button>
-        <button onclick="tease()">NO</button>
-        <button onclick="next(true)">MAYBE (YES)</button>
+    <div class="btn-grid" id="controls">
+        <button onclick="next()">START SYSTEM</button>
     </div>
-
-    <div id="insult-popup"></div>
 </div>
 
 <script>
-    let step = 0;
+    let count = 0;
     const questions = [
-        "Do you talk more than a radio?",
-        "Are you actually a tomboy or just lazy?",
-        "Do you think you can handle me?",
-        "Is it true you're actually quite soft inside?",
-        "Do you like using bad words when you're mad?",
-        "Do you think flowers are a waste of money?",
-        "Are you planning to speak for 5 hours straight today?",
-        "Do you agree that I am the boss here?",
-        "Are you secretly smiling at this website?",
-        "Would you say you're a menace to society?",
-        // I will generate the rest programmatically below to reach 60
+        "Why do you talk so much?", "Is your mouth ever tired?", "Are you actually a menace?",
+        "Do you think you're scary?", "Answer faster!", "Do you like rude boys?",
+        "Why are you still clicking?", "Is your battery dying?", "Stop talking for 2 seconds.",
+        "You're failing the vibe check.", "Just admit you like me.", "Are you blushing?",
+        "I bet you're making a face right now.", "Too slow!", "Keep going.",
+        "45 questions left... cry about it.", "Are you gonna talk during our date too?",
+        "You're a tomboy, act like it.", "Click the button, don't stare at it.",
+        "Getting tired?", "I can do this all day.", "You're definitely annoying.",
+        "But you're my favorite annoying person.", "Almost halfway...", "Focus!",
+        "Stop thinking, just click.", "Why are you so loud?", "Do you ever whisper?",
+        "Liar.", "Click again.", "And again.", "Faster!", "STILL TOO SLOW.",
+        "Are you mad yet?", "Good. I like it when you're mad.", "Keep clicking.",
+        "Almost there...", "Don't stop now.", "Will you go out with me?", "Say yes.",
+        "Say yes or I reset the count.", "Just click it.", "YES OR YES?", "DONE."
     ];
 
-    // Adding more repetitive/teasing questions to reach 60
-    for(let i=11; i<=55; i++) {
-        questions.push(`Question ${i}: Are you tired of clicking yet?`);
-    }
-    questions.push("Question 56: Almost there, don't give up now.");
-    questions.push("Question 57: Are you going to say Yes to a date finally?");
-    questions.push("Question 58: Is that a 'Yes' I see in your eyes?");
-    questions.push("Question 59: Last chance to be nice... are you a sweetheart?");
-    questions.push("Question 60: Will you just shut up and go out with me?");
-
-    const insults = [
-        "Wrong answer. Try again.",
-        "Stop being difficult.",
-        "I didn't give you permission to say No.",
-        "Error: Your 'No' button is broken. Use 'Yes'.",
-        "Don't be a coward.",
-        "You're talking too much. Just click Yes."
-    ];
-
-    function tease() {
-        const popup = document.getElementById('insult-popup');
-        popup.innerText = insults[Math.floor(Math.random() * insults.length)];
+    // Fill to 60
+    while(questions.length < 60) {
+        questions.splice(questions.length - 2, 0, "KEEP CLICKING.");
     }
 
-    function next(isYes) {
-        if(step < questions.length - 1) {
-            step++;
-            document.getElementById('question-text').innerText = questions[step];
-            document.getElementById('progress-text').innerText = `QUESTION ${step + 1} / 60`;
-            document.getElementById('insult-popup').innerText = "";
+    function next() {
+        if(count < questions.length) {
+            const container = document.getElementById('container');
+            const q = document.getElementById('q');
+            const fill = document.getElementById('fill');
+            
+            q.innerText = questions[count];
+            count++;
+            
+            // Progress Bar
+            fill.style.width = (count / 60 * 100) + "%";
+
+            // Visual Chaos
+            if(count > 20) document.body.style.background = (count % 2 === 0) ? "#100" : "#000";
+            if(count > 40) container.classList.add('shake');
+            
+            // Change buttons after first click
+            document.getElementById('controls').innerHTML = `
+                <button onclick="next()">YES</button>
+                <button onclick="alert('NO IS NOT AN OPTION')">NO</button>
+            `;
         } else {
-            document.getElementById('quiz-card').innerHTML = `
-                <h1 style="color:#bc13fe">SYSTEM OVERLOAD</h1>
-                <p>You survived 60 questions of me. <br> That's enough talking. <br> See you on our date. ⚡</p>
-                <button onclick="location.reload()">RESTART (AS IF)</button>
+            document.body.innerHTML = `
+                <div style="text-align:center; color:#f0f; padding:20px;">
+                    <h1>SYSTEM CRASHED</h1>
+                    <p style="color:#fff">You're too much to handle. <br> Friday night. Be ready. <br> And bring that loud mouth with you. 🔥</p>
+                </div>
             `;
         }
     }
