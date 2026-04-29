@@ -3,174 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>THE VAULT | UNAUTHORIZED ACCESS</title>
+    <title>SYSTEM OVERRIDE</title>
     <style>
-        :root {
-            --neon-green: #00ff41;
-            --neon-purple: #bc13fe;
-            --danger-red: #ff3131;
-        }
-
         body {
-            background-color: #050505;
-            color: white;
-            font-family: 'Segoe UI', Impact, sans-serif;
+            background-color: #0a0a0a;
+            color: #00ff41; /* Matrix Green */
+            font-family: 'Courier New', Courier, monospace;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh;
             margin: 0;
             overflow: hidden;
         }
 
-        /* The Main Console */
-        .console {
-            width: 95%;
-            max-width: 500px;
-            border: 2px solid var(--neon-purple);
-            padding: 30px;
-            background: rgba(20, 20, 20, 0.9);
-            box-shadow: 0 0 20px var(--neon-purple);
+        .box {
+            text-align: center;
+            padding: 40px;
+            border: 2px solid #bc13fe; /* Neon Purple */
+            background: #111;
+            box-shadow: 0 0 20px #bc13fe;
+            border-radius: 10px;
+            width: 350px;
             position: relative;
         }
 
-        .header {
-            text-align: center;
-            border-bottom: 1px solid #444;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
+        h1 { font-size: 1.5rem; text-transform: uppercase; margin-bottom: 30px; }
+
+        .btn-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-top: 20px;
+            height: 100px;
         }
 
-        h1 { font-size: 1.5rem; letter-spacing: 3px; color: var(--neon-green); }
-
-        /* The Interactive Sections */
-        .status-panel {
-            font-family: monospace;
-            background: #000;
-            padding: 15px;
-            border-left: 4px solid var(--neon-purple);
-            margin-bottom: 20px;
-            font-size: 0.85rem;
-        }
-
-        .action-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 12px;
-            background: black;
-            border: 1px solid var(--neon-green);
-            color: var(--neon-green);
-            cursor: pointer;
+        button {
+            padding: 15px 25px;
             font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
             transition: 0.2s;
         }
 
-        .btn:hover {
-            background: var(--neon-green);
+        #yes-btn {
+            background: #00ff41;
             color: black;
-            box-shadow: 0 0 15px var(--neon-green);
         }
 
-        /* Special Effects Area */
-        #main-display {
-            margin-top: 25px;
-            padding: 20px;
-            height: 100px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            border: 1px solid #333;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-        }
-
-        /* The "Chaos" Button */
-        .chaos-btn {
-            width: 100%;
-            margin-top: 15px;
-            border: 1px solid var(--danger-red);
-            color: var(--danger-red);
-            padding: 15px;
-            background: transparent;
-            cursor: pointer;
-            font-weight: 900;
-        }
-
-        .chaos-btn:hover {
-            background: var(--danger-red);
+        #no-btn {
+            background: #ff3131;
             color: white;
-            animation: shake 0.5s infinite;
+            position: absolute; /* Needed for movement */
         }
 
-        @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            40% { transform: translate(3px, 2px) rotate(-1deg); }
-            100% { transform: translate(1px, -2px) rotate(0deg); }
+        #result {
+            display: none;
+            margin-top: 20px;
+            font-size: 1.2rem;
+            color: #bc13fe;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
     </style>
 </head>
 <body>
 
-<div class="console" id="console">
-    <div class="header">
-        <h1>SYSTEM DETECTED: [INSERT HER NAME]</h1>
-        <small style="color: #666;">SCANNING PERSONALITY... 100% CHAOTIC</small>
+<div class="box">
+    <h1 id="question">Will you go out with me? <br>(Don't be a coward)</h1>
+    
+    <div class="btn-container">
+        <button id="yes-btn" onclick="sayYes()">YES</button>
+        <button id="no-btn" onmouseover="moveNo()" onclick="moveNo()">NO</button>
     </div>
 
-    <div class="status-panel">
-        > ACTIVITY LEVEL: EXTREME<br>
-        > VERBAL STYLE: AGGRESSIVE/SHARP<br>
-        > LIKES: REAL TALK, NO FLOWERS
+    <div id="result">
+        I KNEW IT! <br> Get ready, we're going out. ⚡
     </div>
-
-    <div class="action-grid">
-        <button class="btn" onclick="say('vibe')">THE VIBE</button>
-        <button class="btn" onclick="say('compliment')">REAL TALK</button>
-        <button class="btn" onclick="say('rude')">GET INSULTED</button>
-        <button class="btn" onclick="say('active')">SPEED CHECK</button>
-    </div>
-
-    <div id="main-display">CHOOSE AN OPTION... IF YOU DARE</div>
-
-    <button class="chaos-btn" onclick="activateChaos()">DO NOT PRESS: CHAOS MODE</button>
 </div>
 
 <script>
-    function say(type) {
-        const display = document.getElementById('main-display');
-        const msgs = {
-            vibe: "You're not 'girly' and that's why you're better. ⚡",
-            compliment: "Most people are boring. You're a hurricane. Stay loud. 🔥",
-            rude: "What are you looking at? Get out of here! (But actually don't). 🙄",
-            active: "Warning: Subject moves too fast for normal humans to handle. 🏃‍♀️"
-        };
-        display.innerHTML = msgs[type];
-        display.style.color = "var(--neon-green)";
+    function moveNo() {
+        const btn = document.getElementById('no-btn');
+        // Calculate random position within the window
+        const x = Math.random() * (window.innerWidth - btn.offsetWidth);
+        const y = Math.random() * (window.innerHeight - btn.offsetHeight);
+        
+        btn.style.left = x + 'px';
+        btn.style.top = y + 'px';
+        
+        // Change the text to tease her
+        const phrases = ["Too slow!", "Missed me!", "Try harder!", "Nope!", "Haha!"];
+        btn.innerText = phrases[Math.floor(Math.random() * phrases.length)];
     }
 
-    function activateChaos() {
-        const body = document.body;
-        const display = document.getElementById('main-display');
-        
-        display.innerHTML = "SYSTEM OVERLOAD: SHE'S TOO ACTIVE!";
-        display.style.color = "var(--danger-red)";
-        
-        // Flash the background
-        let flashes = 0;
-        const interval = setInterval(() => {
-            body.style.backgroundColor = flashes % 2 === 0 ? "#1a0000" : "#050505";
-            flashes++;
-            if(flashes > 10) {
-                clearInterval(interval);
-                body.style.backgroundColor = "#050505";
-            }
-        }, 100);
+    function sayYes() {
+        document.getElementById('question').style.display = 'none';
+        document.getElementById('no-btn').style.display = 'none';
+        document.getElementById('yes-btn').style.display = 'none';
+        document.getElementById('result').style.display = 'block';
     }
 </script>
 
