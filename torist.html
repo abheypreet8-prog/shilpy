@@ -1,0 +1,4438 @@
+================================================================================
+MAURITIUS TOURISM PLATFORM — COMPLETE LOSSLESS MERGE (ALL FILES)
+================================================================================
+
+
+================================================================================
+FILE: .gitignore
+================================================================================
+
+node_modules
+.next
+dist
+.env
+.env.local
+*.log
+.DS_Store
+coverage
+.turbo
+
+================================================================================
+FILE: apps\api\.env.example
+================================================================================
+
+DATABASE_URL="postgresql://mauritius:mauritius_dev@localhost:5432/mauritius_tourism"
+REDIS_URL="redis://localhost:6379"
+JWT_SECRET="your-jwt-secret"
+PORT=4000
+CLOUDINARY_URL=""
+STRIPE_SECRET_KEY=""
+
+================================================================================
+FILE: apps\api\nest-cli.json
+================================================================================
+
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": { "deleteOutDir": true }
+}
+
+================================================================================
+FILE: apps\api\package.json
+================================================================================
+
+{
+  "name": "@mauritius/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.0",
+    "@nestjs/core": "^10.4.0",
+    "@nestjs/platform-express": "^10.4.0",
+    "@nestjs/swagger": "^7.4.0",
+    "@nestjs/throttler": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.0",
+    "@nestjs/schematics": "^10.1.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
+
+================================================================================
+FILE: apps\api\src\app.module.ts
+================================================================================
+
+import { Module } from "@nestjs/common";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { DestinationsModule } from "./destinations/destinations.module";
+import { HotelsModule } from "./hotels/hotels.module";
+import { TaxisModule } from "./taxis/taxis.module";
+import { HealthController } from "./health.controller";
+
+@Module({
+  imports: [
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    DestinationsModule,
+    HotelsModule,
+    TaxisModule,
+  ],
+  controllers: [HealthController],
+})
+export class AppModule {}
+
+================================================================================
+FILE: apps\api\src\destinations\destinations.controller.ts
+================================================================================
+
+import { Controller, Get, Param, Query } from "@nestjs/common";
+import { ApiQuery, ApiTags } from "@nestjs/swagger";
+import { DestinationsService } from "./destinations.service";
+
+@ApiTags("destinations")
+@Controller("destinations")
+export class DestinationsController {
+  constructor(private readonly service: DestinationsService) {}
+
+  @Get()
+  @ApiQuery({ name: "category", required: false })
+  findAll(@Query("category") category?: string) {
+    return this.service.findAll(category);
+  }
+
+  @Get(":slug")
+  findOne(@Param("slug") slug: string) {
+    return this.service.findBySlug(slug);
+  }
+}
+
+================================================================================
+FILE: apps\api\src\destinations\destinations.module.ts
+================================================================================
+
+import { Module } from "@nestjs/common";
+import { DestinationsController } from "./destinations.controller";
+import { DestinationsService } from "./destinations.service";
+
+@Module({
+  controllers: [DestinationsController],
+  providers: [DestinationsService],
+  exports: [DestinationsService],
+})
+export class DestinationsModule {}
+
+================================================================================
+FILE: apps\api\src\destinations\destinations.service.ts
+================================================================================
+
+import { Injectable, NotFoundException } from "@nestjs/common";
+
+const MOCK = [
+  {
+    slug: "le-morne-beach",
+    title: "Le Morne Beach",
+    category: "beach",
+    region: "South-West",
+    trailerUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+  },
+  {
+    slug: "chamarel-waterfall",
+    title: "Chamarel Waterfall",
+    category: "waterfall",
+    region: "South-West",
+  },
+];
+
+@Injectable()
+export class DestinationsService {
+  findAll(category?: string) {
+    if (!category) return { data: MOCK };
+    return { data: MOCK.filter((d) => d.category === category) };
+  }
+
+  findBySlug(slug: string) {
+    const item = MOCK.find((d) => d.slug === slug);
+    if (!item) throw new NotFoundException(`Destination ${slug} not found`);
+    return { data: item };
+  }
+}
+
+================================================================================
+FILE: apps\api\src\health.controller.ts
+================================================================================
+
+import { Controller, Get } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+
+@ApiTags("health")
+@Controller("health")
+export class HealthController {
+  @Get()
+  check() {
+    return { status: "ok", service: "mauritius-tourism-api" };
+  }
+}
+
+================================================================================
+FILE: apps\api\src\hotels\hotels.controller.ts
+================================================================================
+
+import { Controller, Get } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+
+@ApiTags("hotels")
+@Controller("hotels")
+export class HotelsController {
+  @Get()
+  findAll() {
+    return {
+      data: [
+        { slug: "lux-le-morne", name: "LUX* Le Morne", priceFrom: 18500, featured: true },
+      ],
+    };
+  }
+}
+
+================================================================================
+FILE: apps\api\src\hotels\hotels.module.ts
+================================================================================
+
+import { Module } from "@nestjs/common";
+import { HotelsController } from "./hotels.controller";
+
+@Module({ controllers: [HotelsController] })
+export class HotelsModule {}
+
+================================================================================
+FILE: apps\api\src\main.ts
+================================================================================
+
+import { NestFactory } from "@nestjs/core";
+import { ValidationPipe } from "@nestjs/common";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.enableCors({ origin: process.env.CORS_ORIGIN ?? "http://localhost:3000" });
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  const config = new DocumentBuilder()
+    .setTitle("Mauritius Tourism API")
+    .setDescription("Destinations, hotels, guides, taxis, shop, itineraries")
+    .setVersion("1.0")
+    .addBearerAuth()
+    .build();
+  SwaggerModule.setup("api/docs", app, SwaggerModule.createDocument(app, config));
+
+  const port = process.env.PORT ?? 4000;
+  await app.listen(port);
+  console.log(`API running on http://localhost:${port}`);
+  console.log(`Swagger: http://localhost:${port}/api/docs`);
+}
+bootstrap();
+
+================================================================================
+FILE: apps\api\src\taxis\taxis.controller.ts
+================================================================================
+
+import { Controller, Get } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+
+@ApiTags("taxis")
+@Controller("taxis")
+export class TaxisController {
+  @Get("fares")
+  getFares() {
+    return {
+      data: [
+        {
+          from: "SSR Airport",
+          to: "Grand Baie",
+          dayFareMur: 2200,
+          nightFareMur: 2800,
+        },
+      ],
+      tips: [
+        "Confirm fixed fare before departure",
+        "Night surcharge typically 25-35%",
+      ],
+    };
+  }
+}
+
+================================================================================
+FILE: apps\api\src\taxis\taxis.module.ts
+================================================================================
+
+import { Module } from "@nestjs/common";
+import { TaxisController } from "./taxis.controller";
+
+@Module({ controllers: [TaxisController] })
+export class TaxisModule {}
+
+================================================================================
+FILE: apps\api\tsconfig.json
+================================================================================
+
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true
+  }
+}
+
+================================================================================
+FILE: apps\web\.env.example
+================================================================================
+
+DATABASE_URL="postgresql://mauritius:mauritius_dev@localhost:5432/mauritius_tourism"
+NEXT_PUBLIC_API_URL="http://localhost:4000"
+NEXT_PUBLIC_MAPBOX_TOKEN=""
+NEXT_PUBLIC_SITE_URL="http://localhost:3000"
+AUTH_SECRET="generate-a-secure-secret"
+NEXT_PUBLIC_WHATSAPP="+23051234567"
+
+================================================================================
+FILE: apps\web\next.config.ts
+================================================================================
+
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "i.ytimg.com" },
+    ],
+  },
+  experimental: {
+    optimizePackageImports: ["lucide-react", "framer-motion"],
+  },
+};
+
+export default nextConfig;
+
+================================================================================
+FILE: apps\web\next-env.d.ts
+================================================================================
+
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+
+================================================================================
+FILE: apps\web\package.json
+================================================================================
+
+{
+  "name": "@mauritius/web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "framer-motion": "^11.11.0",
+    "lucide-react": "^0.460.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.5.4",
+    "class-variance-authority": "^0.7.0",
+    "@radix-ui/react-dialog": "^1.1.2",
+    "@radix-ui/react-dropdown-menu": "^2.1.2",
+    "@radix-ui/react-select": "^2.1.2",
+    "@radix-ui/react-tabs": "^1.1.1",
+    "@radix-ui/react-slot": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.0",
+    "tailwindcss": "^3.4.14",
+    "postcss": "^8.4.47",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.0.0"
+  }
+}
+
+================================================================================
+FILE: apps\web\postcss.config.mjs
+================================================================================
+
+/** @type {import('postcss-load-config').Config} */
+const config = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+
+export default config;
+
+================================================================================
+FILE: apps\web\public\manifest.json
+================================================================================
+
+{
+  "name": "Mauritius Island Guide",
+  "short_name": "Mauritius Guide",
+  "description": "Premium Mauritius tourism — destinations, hotels, guides, taxis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5e6d3",
+  "theme_color": "#0d6e9e",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
+
+================================================================================
+FILE: apps\web\src\app\about\page.tsx
+================================================================================
+
+import { GlassCard } from "@/components/ui/glass-card";
+import { Shield, Coins, Bus, Heart } from "lucide-react";
+
+const sections = [
+  {
+    icon: Heart,
+    title: "Culture & People",
+    content:
+      "Mauritius blends Creole, Indian, Chinese, French, and African heritage. Respect religious sites; dress modestly at temples.",
+  },
+  {
+    icon: Coins,
+    title: "Currency",
+    content: "Mauritian Rupee (MUR). Cards widely accepted; carry cash for markets and small taxis. ~45 MUR = 1 USD.",
+  },
+  {
+    icon: Shield,
+    title: "Safety",
+    content: "Generally safe for tourists. Avoid isolated beaches at night. Use licensed taxis. Swim only in flagged lagoon areas.",
+  },
+  {
+    icon: Bus,
+    title: "Transportation",
+    content:
+      "Buses cover the island cheaply. Taxis and rentals available. Driving is left-hand. See our taxi fare page for route prices.",
+  },
+];
+
+export default function AboutPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-4xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">About Mauritius</h1>
+      <p className="text-ocean-500 mt-2 mb-12 text-lg">
+        Volcanic island nation in the Indian Ocean — 330km of coastline, lagoons, and multicultural charm.
+      </p>
+      <div className="grid gap-6">
+        {sections.map(({ icon: Icon, title, content }) => (
+          <GlassCard key={title} className="p-6 flex gap-4">
+            <Icon className="h-8 w-8 text-ocean-500 shrink-0" />
+            <div>
+              <h2 className="text-xl font-bold text-ocean-900">{title}</h2>
+              <p className="text-ocean-700 mt-2 leading-relaxed">{content}</p>
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\activities\page.tsx
+================================================================================
+
+import Image from "next/image";
+import Link from "next/link";
+import { Clock, MapPin } from "lucide-react";
+import { activities } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+
+export default function ActivitiesPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">Activities & Tours</h1>
+      <p className="text-ocean-500 mt-2 mb-10">Snorkelling, diving, catamarans, dolphins, hiking, zipline — book experiences</p>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {activities.map((a, i) => (
+          <div key={a.id} id={a.slug}>
+            <GlassCard delay={i * 0.05} className="overflow-hidden h-full">
+              <div className="relative aspect-video">
+                <Image src={a.images[0]} alt={a.title} fill className="object-cover" sizes="400px" />
+              </div>
+              <div className="p-6">
+                <span className="text-xs font-medium text-emerald-deep uppercase">{a.category}</span>
+                <h2 className="text-xl font-bold text-ocean-900 mt-1">{a.title}</h2>
+                <p className="text-sm text-ocean-600 mt-2 line-clamp-2">{a.description}</p>
+                <div className="flex gap-4 mt-4 text-sm text-ocean-500">
+                  <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{a.duration}</span>
+                  <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{a.location}</span>
+                </div>
+                <p className="mt-4 font-semibold text-ocean-700">from MUR {a.priceFrom.toLocaleString()}</p>
+                {a.trailerUrl && (
+                  <Link href="/trailers" className="text-sm text-ocean-500 hover:text-ocean-700 mt-2 inline-block">
+                    Watch trailer →
+                  </Link>
+                )}
+                <Button className="w-full mt-4" variant="sunset">Book activity</Button>
+              </div>
+            </GlassCard>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\admin\page.tsx
+================================================================================
+
+import { BarChart3, MapPin, Hotel, Megaphone, Users } from "lucide-react";
+import { GlassCard } from "@/components/ui/glass-card";
+
+const stats = [
+  { label: "Page views", value: "124.5K", icon: BarChart3 },
+  { label: "Destinations", value: "48", icon: MapPin },
+  { label: "Hotels", value: "32", icon: Hotel },
+  { label: "Users", value: "2.1K", icon: Users },
+];
+
+export default function AdminPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">Admin Panel</h1>
+      <p className="text-ocean-500 mt-2 mb-10">RBAC-protected — manage content, ads, analytics</p>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        {stats.map(({ label, value, icon: Icon }) => (
+          <GlassCard key={label} className="p-6">
+            <Icon className="h-6 w-6 text-ocean-500" />
+            <p className="text-3xl font-bold text-ocean-900 mt-4">{value}</p>
+            <p className="text-sm text-ocean-500">{label}</p>
+          </GlassCard>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {[
+          "Destination Management",
+          "Hotel Listings & Featured",
+          "Blog CMS",
+          "Events Calendar",
+          "Ad & Sponsored Placements",
+          "Guide Verification",
+        ].map((title) => (
+          <GlassCard key={title} className="p-6 flex items-center justify-between">
+            <span className="font-semibold text-ocean-900">{title}</span>
+            <Megaphone className="h-5 w-5 text-ocean-400" />
+          </GlassCard>
+        ))}
+      </div>
+      <p className="text-sm text-ocean-500 mt-8 text-center">
+        Full admin APIs in NestJS — connect via /api/admin when authenticated
+      </p>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\api\destinations\route.ts
+================================================================================
+
+import { NextResponse } from "next/server";
+import { destinations } from "@/data/mock";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const category = searchParams.get("category");
+  const region = searchParams.get("region");
+
+  let data = destinations;
+  if (category) data = data.filter((d) => d.category === category);
+  if (region) data = data.filter((d) => d.region === region);
+
+  return NextResponse.json({ data, total: data.length });
+}
+
+================================================================================
+FILE: apps\web\src\app\api\itinerary\generate\route.ts
+================================================================================
+
+import { NextResponse } from "next/server";
+import { destinations, hotels } from "@/data/mock";
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  const days = Math.min(Math.max(Number(body.days) || 7, 1), 14);
+  const budget = Number(body.budget) || 100000;
+  const interests: string[] = body.interests ?? [];
+
+  const plan = Array.from({ length: days }, (_, i) => ({
+    day: i + 1,
+    destination: destinations[i % destinations.length],
+    hotel: hotels[i % hotels.length],
+    transportTip: "Pre-book taxi from airport for fixed fare",
+    mealSuggestion: interests.includes("Food") ? "Try local dholl puri" : "Resort dining",
+  }));
+
+  return NextResponse.json({
+    itinerary: plan,
+    estimatedBudgetMur: budget,
+    interests,
+    aiGenerated: true,
+  });
+}
+
+================================================================================
+FILE: apps\web\src\app\api\taxis\route.ts
+================================================================================
+
+import { NextResponse } from "next/server";
+import { taxiRoutes } from "@/data/mock";
+
+export async function GET() {
+  return NextResponse.json({ data: taxiRoutes });
+}
+
+================================================================================
+FILE: apps\web\src\app\blog\[slug]\page.tsx
+================================================================================
+
+import { notFound } from "next/navigation";
+import { blogPosts } from "@/data/mock";
+
+type Props = { params: Promise<{ slug: string }> };
+
+export default async function BlogPostPage({ params }: Props) {
+  const { slug } = await params;
+  const post = blogPosts.find((p) => p.slug === slug);
+  if (!post) notFound();
+
+  return (
+    <article className="pt-28 pb-20 max-w-3xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">{post.title}</h1>
+      <p className="text-ocean-500 mt-4">{post.author} · {post.publishedAt}</p>
+      <div className="prose prose-ocean mt-10 text-ocean-700">
+        <p>{post.excerpt}</p>
+        <p className="mt-6">Full article content loads from CMS (Sanity/Strapi) in production.</p>
+      </div>
+    </article>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\blog\page.tsx
+================================================================================
+
+import Image from "next/image";
+import Link from "next/link";
+import { blogPosts } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+
+export default function BlogPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">Travel Guide Blog</h1>
+      <p className="text-ocean-500 mt-2 mb-10">SEO guides — beaches, honeymoons, itineraries</p>
+      <div className="grid md:grid-cols-2 gap-8">
+        {blogPosts.map((post) => (
+          <Link key={post.id} href={`/blog/${post.slug}`}>
+            <GlassCard className="overflow-hidden h-full group">
+              {post.coverImage && (
+                <div className="relative aspect-[16/9]">
+                  <Image src={post.coverImage} alt={post.title} fill className="object-cover group-hover:scale-105 transition-transform" />
+                </div>
+              )}
+              <div className="p-6">
+                <div className="flex gap-2 flex-wrap">
+                  {post.tags.map((t) => (
+                    <span key={t} className="text-xs bg-ocean-50 text-ocean-600 px-2 py-0.5 rounded">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                <h2 className="text-xl font-bold text-ocean-900 mt-3 group-hover:text-ocean-600">{post.title}</h2>
+                <p className="text-ocean-600 mt-2">{post.excerpt}</p>
+                <p className="text-xs text-ocean-400 mt-4">{post.publishedAt}</p>
+              </div>
+            </GlassCard>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\contact\page.tsx
+================================================================================
+
+"use client";
+
+import { MessageCircle, Mail, MapPin } from "lucide-react";
+import { siteConfig } from "@/config/site";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+
+export default function ContactPage() {
+  const wa = siteConfig.whatsapp.replace(/\D/g, "");
+
+  return (
+    <div className="pt-28 pb-16 max-w-4xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">Contact Us</h1>
+      <p className="text-ocean-500 mt-2 mb-10">Questions about hotels, guides, or custom trips</p>
+
+      <div className="grid md:grid-cols-2 gap-8">
+        <GlassCard className="p-8">
+          <form className="space-y-4">
+            <input
+              type="text"
+              placeholder="Your name"
+              className="w-full h-11 px-4 rounded-xl border border-ocean-200 focus:ring-2 focus:ring-ocean-400 outline-none"
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              className="w-full h-11 px-4 rounded-xl border border-ocean-200 focus:ring-2 focus:ring-ocean-400 outline-none"
+            />
+            <textarea
+              placeholder="Message"
+              rows={5}
+              className="w-full px-4 py-3 rounded-xl border border-ocean-200 focus:ring-2 focus:ring-ocean-400 outline-none resize-none"
+            />
+            <Button type="submit" variant="sunset" className="w-full">Send inquiry</Button>
+          </form>
+        </GlassCard>
+
+        <div className="space-y-4">
+          <a
+            href={`https://wa.me/${wa}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            <GlassCard className="p-6 flex items-center gap-4 hover:border-emerald-island/50">
+              <MessageCircle className="h-8 w-8 text-emerald-island" />
+              <div>
+                <p className="font-semibold text-ocean-900">WhatsApp</p>
+                <p className="text-sm text-ocean-500">{siteConfig.whatsapp}</p>
+              </div>
+            </GlassCard>
+          </a>
+          <GlassCard className="p-6 flex items-center gap-4">
+            <Mail className="h-8 w-8 text-ocean-500" />
+            <div>
+              <p className="font-semibold text-ocean-900">Email</p>
+              <p className="text-sm text-ocean-500">hello@mauritiusguide.com</p>
+            </div>
+          </GlassCard>
+          <GlassCard className="p-6 flex items-center gap-4">
+            <MapPin className="h-8 w-8 text-ocean-500" />
+            <div>
+              <p className="font-semibold text-ocean-900">Office</p>
+              <p className="text-sm text-ocean-500">Port Louis, Mauritius</p>
+            </div>
+          </GlassCard>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\dashboard\page.tsx
+================================================================================
+
+import Link from "next/link";
+import { Bookmark, Map, Hotel, Calendar, Bell } from "lucide-react";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+
+export default function DashboardPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-5xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">My Dashboard</h1>
+      <p className="text-ocean-500 mt-2 mb-10">Saved places, itineraries, and bookings</p>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        {[
+          { icon: Bookmark, label: "Saved places", count: 5 },
+          { icon: Hotel, label: "Saved hotels", count: 2 },
+          { icon: Map, label: "Itineraries", count: 1 },
+          { icon: Bell, label: "Notifications", count: 3 },
+        ].map(({ icon: Icon, label, count }) => (
+          <GlassCard key={label} className="p-6 text-center">
+            <Icon className="h-8 w-8 mx-auto text-ocean-500" />
+            <p className="text-2xl font-bold text-ocean-900 mt-3">{count}</p>
+            <p className="text-sm text-ocean-500">{label}</p>
+          </GlassCard>
+        ))}
+      </div>
+
+      <GlassCard className="p-8">
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          <Calendar className="h-5 w-5" /> Recent itinerary
+        </h2>
+        <p className="text-ocean-600 mt-4">7-Day South & North Explorer (draft)</p>
+        <div className="flex gap-3 mt-6">
+          <Link href="/itinerary"><Button variant="sunset">Edit plan</Button></Link>
+          <Button variant="outline">View bookings</Button>
+        </div>
+      </GlassCard>
+
+      <p className="text-center text-sm text-ocean-500 mt-8">
+        Sign in with Auth.js / Clerk to persist data — demo shows static UI
+      </p>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\destinations\[slug]\page.tsx
+================================================================================
+
+import { notFound } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { MapPin, Star, Clock, Ticket } from "lucide-react";
+import { getDestinationBySlug, hotels } from "@/data/mock";
+import { VideoTrailer } from "@/components/shared/video-trailer";
+import { HotelCard } from "@/components/cards/hotel-card";
+import { Button } from "@/components/ui/button";
+import { GlassCard } from "@/components/ui/glass-card";
+import type { Metadata } from "next";
+
+type Props = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const d = getDestinationBySlug(slug);
+  if (!d) return { title: "Not Found" };
+  return {
+    title: d.title,
+    description: d.description.slice(0, 160),
+    openGraph: { images: [d.images[0]] },
+  };
+}
+
+export default async function DestinationDetailPage({ params }: Props) {
+  const { slug } = await params;
+  const destination = getDestinationBySlug(slug);
+  if (!destination) notFound();
+
+  const nearbyHotels = hotels.filter((h) => h.region === destination.region);
+
+  return (
+    <article className="pt-24 pb-20">
+      <div className="relative h-[50vh] min-h-[400px]">
+        <Image src={destination.images[0]} alt={destination.title} fill className="object-cover" priority />
+        <div className="absolute inset-0 bg-gradient-to-t from-ocean-900/90 via-transparent to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 p-8 max-w-7xl mx-auto">
+          <span className="text-emerald-island text-sm font-medium uppercase tracking-wider capitalize">
+            {destination.category}
+          </span>
+          <h1 className="text-4xl md:text-5xl font-bold text-white mt-2">{destination.title}</h1>
+          <p className="flex items-center gap-2 text-white/80 mt-2">
+            <MapPin className="h-4 w-4" /> {destination.location}
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 mt-12 grid lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2 space-y-10">
+          {destination.trailerUrl && (
+            <section>
+              <h2 className="text-2xl font-bold text-ocean-900 mb-4">Place Trailer</h2>
+              <VideoTrailer
+                title={destination.title}
+                trailerUrl={destination.trailerUrl}
+                thumbnail={destination.trailerThumbnail ?? destination.images[0]}
+              />
+            </section>
+          )}
+          <section>
+            <h2 className="text-2xl font-bold text-ocean-900 mb-4">About</h2>
+            <p className="text-ocean-700 leading-relaxed text-lg">{destination.description}</p>
+          </section>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {destination.bestTimeToVisit && (
+              <GlassCard className="p-5 flex gap-3">
+                <Clock className="h-5 w-5 text-ocean-500 shrink-0" />
+                <div>
+                  <p className="font-semibold text-ocean-900">Best time</p>
+                  <p className="text-sm text-ocean-600">{destination.bestTimeToVisit}</p>
+                </div>
+              </GlassCard>
+            )}
+            {destination.entryFee != null && (
+              <GlassCard className="p-5 flex gap-3">
+                <Ticket className="h-5 w-5 text-ocean-500 shrink-0" />
+                <div>
+                  <p className="font-semibold text-ocean-900">Entry fee</p>
+                  <p className="text-sm text-ocean-600">MUR {destination.entryFee}</p>
+                </div>
+              </GlassCard>
+            )}
+          </div>
+          <section>
+            <h2 className="text-2xl font-bold text-ocean-900 mb-4">Map</h2>
+            <GlassCard className="aspect-video flex items-center justify-center bg-ocean-50">
+              <p className="text-ocean-500 text-center px-4">
+                Interactive map — connect Mapbox with coords: {destination.latitude}, {destination.longitude}
+              </p>
+            </GlassCard>
+          </section>
+        </div>
+
+        <aside className="space-y-6">
+          <GlassCard className="p-6 sticky top-28">
+            <div className="flex items-center gap-2 mb-4">
+              <Star className="h-5 w-5 fill-sunset text-sunset" />
+              <span className="text-xl font-bold">{destination.rating}</span>
+              <span className="text-ocean-500">({destination.reviewCount} reviews)</span>
+            </div>
+            <Link href="/transport/taxis">
+              <Button className="w-full mb-2" variant="outline">Taxi fares to here</Button>
+            </Link>
+            <Link href="/itinerary">
+              <Button className="w-full" variant="sunset">Add to itinerary</Button>
+            </Link>
+          </GlassCard>
+        </aside>
+      </div>
+
+      {nearbyHotels.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 mt-20">
+          <h2 className="text-2xl font-bold text-ocean-900 mb-8">Nearby Hotels</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {nearbyHotels.map((h, i) => (
+              <HotelCard key={h.id} hotel={h} delay={i * 0.1} />
+            ))}
+          </div>
+        </section>
+      )}
+    </article>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\destinations\page.tsx
+================================================================================
+
+"use client";
+
+import { useState } from "react";
+import { DestinationCard } from "@/components/cards/destination-card";
+import { FilterChips } from "@/components/shared/filter-chips";
+import { SearchBar } from "@/components/shared/search-bar";
+import { destinations } from "@/data/mock";
+import type { FilterTags } from "@/types";
+
+export default function DestinationsPage() {
+  const [filters, setFilters] = useState<FilterTags[]>([]);
+
+  const filtered = destinations.filter((d) => {
+    if (filters.includes("family") && !d.familyFriendly) return false;
+    if (filters.includes("luxury") && !d.luxury) return false;
+    if (filters.includes("adventure") && !d.adventure) return false;
+    if (filters.includes("romantic") && !d.romantic) return false;
+    return true;
+  });
+
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <div className="mb-12">
+        <h1 className="text-4xl font-bold text-ocean-900">Destinations</h1>
+        <p className="text-ocean-500 mt-2 max-w-2xl">
+          Beaches, waterfalls, hiking, culture, markets — each with photos, trailers, maps, and transport tips.
+        </p>
+        <div className="mt-8"><SearchBar placeholder="Search destinations..." /></div>
+        <div className="mt-6"><FilterChips active={filters} onChange={setFilters} /></div>
+      </div>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filtered.map((d, i) => (
+          <DestinationCard key={d.id} destination={d} delay={i * 0.05} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\globals.css
+================================================================================
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-display: "Georgia", "Times New Roman", serif;
+    --font-sans: "Segoe UI", system-ui, sans-serif;
+    --background: 210 40% 98%;
+    --foreground: 200 50% 12%;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-gradient-to-b from-sand/30 via-white to-ocean-50/30 text-ocean-900 antialiased;
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer utilities {
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+================================================================================
+FILE: apps\web\src\app\guides\[slug]\page.tsx
+================================================================================
+
+import { notFound } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { Star, Download, MessageCircle } from "lucide-react";
+import { getGuideBySlug } from "@/data/mock";
+import { formatMur } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { GlassCard } from "@/components/ui/glass-card";
+
+type Props = { params: Promise<{ slug: string }> };
+
+export default async function GuideDetailPage({ params }: Props) {
+  const { slug } = await params;
+  const guide = getGuideBySlug(slug);
+  if (!guide) notFound();
+
+  return (
+    <div className="pt-28 pb-20 max-w-4xl mx-auto px-4">
+      <GlassCard className="p-8">
+        <div className="flex flex-col sm:flex-row gap-8">
+          <div className="relative w-32 h-32 rounded-full overflow-hidden mx-auto sm:mx-0 shrink-0 bg-ocean-100">
+            {guide.avatar && <Image src={guide.avatar} alt={guide.displayName} fill className="object-cover" />}
+          </div>
+          <div className="flex-1 text-center sm:text-left">
+            <h1 className="text-3xl font-bold text-ocean-900">{guide.displayName}</h1>
+            {guide.verified && <p className="text-sm text-emerald-deep font-medium mt-1">Verified guide</p>}
+            <div className="flex items-center justify-center sm:justify-start gap-2 mt-3">
+              <Star className="h-5 w-5 fill-sunset text-sunset" />
+              <span className="font-bold">{guide.rating}</span>
+              <span className="text-ocean-500">({guide.reviewCount} reviews)</span>
+            </div>
+            <p className="mt-6 text-ocean-700 leading-relaxed">{guide.bio}</p>
+            <p className="mt-4 text-sm"><strong>Languages:</strong> {guide.languages.join(", ")}</p>
+            <p className="text-sm"><strong>Specialties:</strong> {guide.specialties.join(", ")}</p>
+            <p className="mt-4 text-xl font-bold text-ocean-700">
+              {formatMur(guide.hourlyRate)}/hour
+              {guide.dailyRate && ` · ${formatMur(guide.dailyRate)}/day`}
+            </p>
+            <div className="flex flex-wrap gap-3 mt-8 justify-center sm:justify-start">
+              <Button variant="sunset" size="lg">Book guide</Button>
+              {guide.whatsapp && (
+                <a href={`https://wa.me/${guide.whatsapp.replace(/\D/g, "")}`}>
+                  <Button variant="outline" size="lg">
+                    <MessageCircle className="h-4 w-4" /> WhatsApp
+                  </Button>
+                </a>
+              )}
+              {guide.offlinePackUrl && (
+                <Link href="/guides/offline">
+                  <Button variant="secondary" size="lg">
+                    <Download className="h-4 w-4" /> Offline pack ({guide.offlinePackSize})
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </GlassCard>
+      <section className="mt-12">
+        <h2 className="text-xl font-bold mb-4">Related vlogs</h2>
+        <p className="text-ocean-500 text-sm">
+          See <Link href="/vlogs" className="text-ocean-600 underline">travel vlogs</Link> for tips on touring with local guides.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\guides\offline\page.tsx
+================================================================================
+
+import { Download, WifiOff, Map, FileText } from "lucide-react";
+import { guides } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+
+export default function OfflineGuidesPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-4xl mx-auto px-4">
+      <div className="flex items-center gap-3 mb-2">
+        <WifiOff className="h-10 w-10 text-ocean-500" />
+        <h1 className="text-4xl font-bold text-ocean-900">Offline Guide Packs</h1>
+      </div>
+      <p className="text-ocean-500 mb-10">
+        Download PDF + map bundles before your trip — works without mobile data on the island
+      </p>
+
+      <GlassCard className="p-8 mb-10 bg-gradient-to-br from-ocean-50 to-emerald-island/10">
+        <h2 className="text-xl font-bold text-ocean-900 mb-4">What&apos;s included</h2>
+        <ul className="grid sm:grid-cols-2 gap-4 text-ocean-700">
+          <li className="flex gap-3"><Map className="h-5 w-5 text-ocean-500 shrink-0" /> Offline maps (GPX + PDF)</li>
+          <li className="flex gap-3"><FileText className="h-5 w-5 text-ocean-500 shrink-0" /> Day-by-day itineraries</li>
+          <li className="flex gap-3"><Download className="h-5 w-5 text-ocean-500 shrink-0" /> Taxi fare cheat sheet</li>
+          <li className="flex gap-3"><FileText className="h-5 w-5 text-ocean-500 shrink-0" /> Emergency contacts & etiquette</li>
+        </ul>
+      </GlassCard>
+
+      <div className="space-y-4">
+        {guides
+          .filter((g) => g.offlinePackUrl)
+          .map((g) => (
+            <GlassCard key={g.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-lg text-ocean-900">{g.displayName}&apos;s Island Pack</h3>
+                <p className="text-sm text-ocean-500">{g.offlinePackSize} · {g.specialties.slice(0, 2).join(", ")}</p>
+              </div>
+              <Button variant="sunset">
+                <Download className="h-4 w-4" /> Download free preview
+              </Button>
+            </GlassCard>
+          ))}
+      </div>
+
+      <p className="text-sm text-ocean-500 mt-8 text-center">
+        Full packs unlock after booking a guide or premium subscription
+      </p>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\guides\page.tsx
+================================================================================
+
+import Image from "next/image";
+import Link from "next/link";
+import { Star, BadgeCheck, MessageCircle } from "lucide-react";
+import { guides } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { formatMur } from "@/lib/utils";
+
+export default function GuidesPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-10">
+        <div>
+          <h1 className="text-4xl font-bold text-ocean-900">Local Tour Guides</h1>
+          <p className="text-ocean-500 mt-2">Verified guides for hiking, culture, beaches, and photography</p>
+        </div>
+        <Link href="/guides/offline">
+          <Button variant="outline">Offline guide packs →</Button>
+        </Link>
+      </div>
+      <div className="grid md:grid-cols-2 gap-6">
+        {guides.map((g, i) => (
+          <Link key={g.id} href={`/guides/${g.slug}`}>
+            <GlassCard delay={i * 0.1} className="p-6 flex gap-6">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden shrink-0 bg-ocean-100">
+                {g.avatar && <Image src={g.avatar} alt={g.displayName} fill className="object-cover" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-ocean-900">{g.displayName}</h2>
+                  {g.verified && <BadgeCheck className="h-5 w-5 text-ocean-500" />}
+                </div>
+                <p className="text-sm text-ocean-600 mt-2 line-clamp-2">{g.bio}</p>
+                <p className="text-xs text-ocean-500 mt-2">{g.languages.join(" · ")}</p>
+                <p className="text-xs mt-1">{g.specialties.join(" · ")}</p>
+                <div className="flex items-center justify-between mt-4">
+                  <span className="flex items-center gap-1 text-sm">
+                    <Star className="h-4 w-4 fill-sunset text-sunset" />
+                    {g.rating} ({g.reviewCount})
+                  </span>
+                  <span className="font-semibold text-ocean-700">
+                    {formatMur(g.hourlyRate)}/hr
+                  </span>
+                </div>
+              </div>
+            </GlassCard>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\hotels\[slug]\page.tsx
+================================================================================
+
+import { notFound } from "next/navigation";
+import Image from "next/image";
+import { Star, Check } from "lucide-react";
+import { getHotelBySlug } from "@/data/mock";
+import { VideoTrailer } from "@/components/shared/video-trailer";
+import { formatMur } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { GlassCard } from "@/components/ui/glass-card";
+
+type Props = { params: Promise<{ slug: string }> };
+
+export default async function HotelDetailPage({ params }: Props) {
+  const { slug } = await params;
+  const hotel = getHotelBySlug(slug);
+  if (!hotel) notFound();
+
+  return (
+    <article className="pt-24 pb-20 max-w-7xl mx-auto px-4">
+      <div className="grid lg:grid-cols-2 gap-8 mb-12">
+        <div className="relative aspect-[4/3] rounded-2xl overflow-hidden">
+          <Image src={hotel.images[0]} alt={hotel.name} fill className="object-cover" priority />
+        </div>
+        <div>
+          <h1 className="text-4xl font-bold text-ocean-900">{hotel.name}</h1>
+          <p className="text-ocean-500 mt-2">{hotel.location} · {hotel.region}</p>
+          <div className="flex items-center gap-2 mt-4">
+            <Star className="h-5 w-5 fill-sunset text-sunset" />
+            <span className="font-bold text-lg">{hotel.rating}</span>
+            <span className="text-ocean-500">({hotel.reviewCount} reviews)</span>
+          </div>
+          <p className="text-2xl font-bold text-ocean-700 mt-6">
+            from {formatMur(hotel.priceFrom)}
+            {hotel.priceTo && ` – ${formatMur(hotel.priceTo)}`} / night
+          </p>
+          <p className="mt-6 text-ocean-700 leading-relaxed">{hotel.description}</p>
+          <div className="flex flex-wrap gap-2 mt-6">
+            {hotel.amenities.map((a) => (
+              <span key={a} className="flex items-center gap-1 text-sm bg-ocean-50 text-ocean-700 px-3 py-1 rounded-full">
+                <Check className="h-3 w-3 text-emerald-island" /> {a}
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-3 mt-8">
+            <Button size="lg" variant="sunset">Book Now</Button>
+            <Button size="lg" variant="outline">Save</Button>
+          </div>
+        </div>
+      </div>
+      {hotel.trailerUrl && (
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">Hotel Video Tour</h2>
+          <VideoTrailer title={hotel.name} trailerUrl={hotel.trailerUrl} thumbnail={hotel.images[0]} />
+        </section>
+      )}
+      <GlassCard className="p-8 aspect-video flex items-center justify-center text-ocean-500">
+        Map & nearby attractions — integrate Google Maps / Mapbox
+      </GlassCard>
+    </article>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\hotels\page.tsx
+================================================================================
+
+"use client";
+
+import { useState } from "react";
+import { HotelCard } from "@/components/cards/hotel-card";
+import { FilterChips } from "@/components/shared/filter-chips";
+import { hotels } from "@/data/mock";
+import type { FilterTags } from "@/types";
+
+export default function HotelsPage() {
+  const [filters, setFilters] = useState<FilterTags[]>([]);
+
+  const filtered = hotels.filter((h) => {
+    if (filters.includes("luxury") && !h.luxury) return false;
+    if (filters.includes("family") && !h.familyFriendly) return false;
+    return true;
+  });
+
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">Hotels & Resorts</h1>
+      <p className="text-ocean-500 mt-2 mb-8">Luxury resorts, beachfront stays, and boutique hotels with video tours</p>
+      <FilterChips active={filters} onChange={setFilters} />
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
+        {filtered.map((h, i) => (
+          <HotelCard key={h.id} hotel={h} delay={i * 0.05} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\itinerary\page.tsx
+================================================================================
+
+"use client";
+
+import { useState } from "react";
+import { Sparkles, Calendar, Wallet, Heart } from "lucide-react";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { destinations } from "@/data/mock";
+
+const interests = ["Beaches", "Hiking", "Luxury", "Food", "Culture", "Adventure", "Nightlife", "Family"];
+
+export default function ItineraryBuilderPage() {
+  const [days, setDays] = useState(7);
+  const [budget, setBudget] = useState(150000);
+  const [selected, setSelected] = useState<string[]>(["Beaches", "Food"]);
+  const [generated, setGenerated] = useState(false);
+
+  const toggleInterest = (i: string) => {
+    setSelected((s) => (s.includes(i) ? s.filter((x) => x !== i) : [...s, i]));
+  };
+
+  const generate = () => {
+    setGenerated(true);
+  };
+
+  const plan = generated
+    ? Array.from({ length: Math.min(days, 5) }, (_, i) => ({
+        day: i + 1,
+        place: destinations[i % destinations.length],
+      }))
+    : [];
+
+  return (
+    <div className="pt-28 pb-16 max-w-4xl mx-auto px-4">
+      <div className="flex items-center gap-3 mb-2">
+        <Sparkles className="h-10 w-10 text-sunset" />
+        <h1 className="text-4xl font-bold text-ocean-900">AI Trip Planner</h1>
+      </div>
+      <p className="text-ocean-500 mb-10">Budget, days, interests → full itinerary with hotels, food & transport</p>
+
+      <GlassCard className="p-8 space-y-8">
+        <div>
+          <label className="flex items-center gap-2 font-medium text-ocean-900 mb-2">
+            <Calendar className="h-4 w-4" /> Number of days: {days}
+          </label>
+          <input
+            type="range"
+            min={1}
+            max={14}
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="w-full accent-ocean-500"
+          />
+        </div>
+        <div>
+          <label className="flex items-center gap-2 font-medium text-ocean-900 mb-2">
+            <Wallet className="h-4 w-4" /> Budget (MUR): {budget.toLocaleString()}
+          </label>
+          <input
+            type="range"
+            min={30000}
+            max={500000}
+            step={10000}
+            value={budget}
+            onChange={(e) => setBudget(Number(e.target.value))}
+            className="w-full accent-ocean-500"
+          />
+        </div>
+        <div>
+          <label className="flex items-center gap-2 font-medium text-ocean-900 mb-3">
+            <Heart className="h-4 w-4" /> Interests
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {interests.map((i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => toggleInterest(i)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  selected.includes(i)
+                    ? "bg-ocean-500 text-white"
+                    : "bg-ocean-50 text-ocean-600 hover:bg-ocean-100"
+                }`}
+              >
+                {i}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Button variant="sunset" size="lg" className="w-full" onClick={generate}>
+          <Sparkles className="h-4 w-4" /> Generate itinerary
+        </Button>
+      </GlassCard>
+
+      {generated && (
+        <section className="mt-12 space-y-4">
+          <h2 className="text-2xl font-bold text-ocean-900">Your {days}-day plan</h2>
+          <p className="text-sm text-ocean-500">
+            Demo itinerary — connect OpenAI API in production for personalized routes
+          </p>
+          {plan.map(({ day, place }) => (
+            <GlassCard key={day} className="p-6">
+              <p className="text-sm font-bold text-sunset">Day {day}</p>
+              <h3 className="text-xl font-semibold text-ocean-900 mt-1">{place.title}</h3>
+              <p className="text-ocean-600 text-sm mt-2">{place.location}</p>
+              <p className="text-ocean-500 text-sm mt-2 line-clamp-2">{place.description}</p>
+            </GlassCard>
+          ))}
+          <Button variant="outline" className="w-full">Save to dashboard</Button>
+        </section>
+      )}
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\layout.tsx
+================================================================================
+
+import type { Metadata, Viewport } from "next";
+import { Navbar } from "@/components/layout/navbar";
+import { Footer } from "@/components/layout/footer";
+import { MobileNav } from "@/components/layout/mobile-nav";
+import { siteConfig } from "@/config/site";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: {
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  keywords: [
+    "Mauritius tourism",
+    "Mauritius beaches",
+    "Mauritius hotels",
+    "Mauritius itinerary",
+    "Mauritius taxi fares",
+    "Mauritius travel guide",
+  ],
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: siteConfig.name,
+    title: siteConfig.name,
+    description: siteConfig.description,
+  },
+  robots: { index: true, follow: true },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0d6e9e",
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+      </head>
+      <body className="min-h-screen pb-20 lg:pb-0">
+        <Navbar />
+        <main>{children}</main>
+        <Footer />
+        <MobileNav />
+      </body>
+    </html>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\page.tsx
+================================================================================
+
+import Link from "next/link";
+import { HeroSection } from "@/components/home/hero-section";
+import { DestinationCard } from "@/components/cards/destination-card";
+import { HotelCard } from "@/components/cards/hotel-card";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import {
+  destinations,
+  hotels,
+  activities,
+  trendingItems,
+} from "@/data/mock";
+import {
+  TrendingUp,
+  ShoppingBag,
+  Car,
+  Download,
+  Video,
+  Sparkles,
+} from "lucide-react";
+import Image from "next/image";
+
+export default function HomePage() {
+  return (
+    <>
+      <HeroSection />
+
+      {/* Quick access strip */}
+      <section className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { href: "/trending", icon: TrendingUp, label: "Trending" },
+            { href: "/trailers", icon: Video, label: "Trailers" },
+            { href: "/transport/taxis", icon: Car, label: "Taxi Fares" },
+            { href: "/guides/offline", icon: Download, label: "Offline Guide" },
+            { href: "/shop", icon: ShoppingBag, label: "Shop Local" },
+            { href: "/itinerary", icon: Sparkles, label: "AI Planner" },
+          ].map(({ href, icon: Icon, label }) => (
+            <Link key={href} href={href}>
+              <GlassCard hover className="p-4 text-center">
+                <Icon className="h-6 w-6 mx-auto text-ocean-500 mb-2" />
+                <span className="text-sm font-medium text-ocean-800">{label}</span>
+              </GlassCard>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Trending preview */}
+      <section className="max-w-7xl mx-auto px-4 py-20">
+        <div className="flex justify-between items-end mb-10">
+          <div>
+            <h2 className="text-3xl font-bold text-ocean-900">Trending This Week</h2>
+            <p className="text-ocean-500 mt-2">Hot destinations, hotels, and vlogs</p>
+          </div>
+          <Link href="/trending">
+            <Button variant="outline">View all</Button>
+          </Link>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {trendingItems.map((item, i) => (
+            <Link
+              key={item.id}
+              href={
+                item.type === "destination"
+                  ? `/destinations/${item.slug}`
+                  : item.type === "hotel"
+                    ? `/hotels/${item.slug}`
+                    : item.type === "vlog"
+                      ? `/vlogs/${item.slug}`
+                      : item.type === "guide"
+                        ? `/guides/${item.slug}`
+                        : `/activities/${item.slug}`
+              }
+            >
+              <GlassCard delay={i * 0.05} className="overflow-hidden">
+                <div className="relative aspect-square">
+                  <Image src={item.image} alt={item.title} fill className="object-cover" sizes="200px" />
+                  <span className="absolute top-2 left-2 bg-sunset text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    #{i + 1}
+                  </span>
+                </div>
+                <div className="p-3">
+                  <p className="font-semibold text-sm text-ocean-900 line-clamp-1">{item.title}</p>
+                  <p className="text-xs text-ocean-500 capitalize">{item.subtitle}</p>
+                </div>
+              </GlassCard>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Destinations */}
+      <section className="max-w-7xl mx-auto px-4 py-16 bg-white/50 rounded-3xl">
+        <h2 className="text-3xl font-bold text-ocean-900 mb-2">Popular Destinations</h2>
+        <p className="text-ocean-500 mb-10">Beaches, waterfalls, and hidden gems with video trailers</p>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {destinations.slice(0, 3).map((d, i) => (
+            <DestinationCard key={d.id} destination={d} delay={i * 0.1} />
+          ))}
+        </div>
+        <div className="text-center mt-10">
+          <Link href="/destinations"><Button size="lg">All Destinations</Button></Link>
+        </div>
+      </section>
+
+      {/* Hotels */}
+      <section className="max-w-7xl mx-auto px-4 py-20">
+        <h2 className="text-3xl font-bold text-ocean-900 mb-10">Featured Hotels</h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          {hotels.map((h, i) => (
+            <HotelCard key={h.id} hotel={h} delay={i * 0.1} />
+          ))}
+        </div>
+      </section>
+
+      {/* Activities teaser */}
+      <section className="max-w-7xl mx-auto px-4 py-16">
+        <h2 className="text-3xl font-bold text-ocean-900 mb-8">Top Activities</h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          {activities.map((a) => (
+            <Link key={a.id} href={`/activities#${a.slug}`}>
+              <GlassCard className="p-6 h-full hover:border-ocean-200">
+                <h3 className="font-semibold text-lg">{a.title}</h3>
+                <p className="text-sm text-ocean-500 mt-2 line-clamp-2">{a.description}</p>
+                <p className="mt-4 text-ocean-700 font-medium">from MUR {a.priceFrom.toLocaleString()}</p>
+              </GlassCard>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Newsletter */}
+      <section className="max-w-3xl mx-auto px-4 py-20 text-center">
+        <GlassCard className="p-10">
+          <h2 className="text-2xl font-bold text-ocean-900">Island travel tips in your inbox</h2>
+          <p className="text-ocean-500 mt-2 mb-6">Weekly guides, events, and fare updates</p>
+          <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+            <input
+              type="email"
+              placeholder="your@email.com"
+              className="flex-1 h-11 px-4 rounded-full border border-ocean-200 focus:ring-2 focus:ring-ocean-400 outline-none"
+            />
+            <Button type="submit" variant="sunset">Subscribe</Button>
+          </form>
+        </GlassCard>
+      </section>
+    </>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\restaurants\page.tsx
+================================================================================
+
+import Image from "next/image";
+import { Star, MapPin } from "lucide-react";
+import { restaurants } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+
+export default function RestaurantsPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">Restaurants</h1>
+      <p className="text-ocean-500 mt-2 mb-10">Seafood, local Creole, luxury dining, and street food</p>
+      <div className="grid md:grid-cols-2 gap-6">
+        {restaurants.map((r, i) => (
+          <GlassCard key={r.id} delay={i * 0.1} className="overflow-hidden flex flex-col sm:flex-row">
+            <div className="relative sm:w-48 aspect-video sm:aspect-square shrink-0">
+              <Image src={r.images[0]} alt={r.name} fill className="object-cover" />
+            </div>
+            <div className="p-6 flex-1">
+              <span className="text-xs text-sunset font-medium">{r.category}</span>
+              <h2 className="text-xl font-bold text-ocean-900">{r.name}</h2>
+              <p className="text-sm text-ocean-600 mt-2">{r.description}</p>
+              <p className="text-sm text-ocean-500 mt-2">{r.cuisine.join(" · ")} · {r.priceRange}</p>
+              <div className="flex items-center gap-4 mt-3 text-sm">
+                <span className="flex items-center gap-1"><Star className="h-4 w-4 fill-sunset text-sunset" />{r.rating}</span>
+                <span className="flex items-center gap-1 text-ocean-500"><MapPin className="h-4 w-4" />{r.location}</span>
+              </div>
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\robots.ts
+================================================================================
+
+import { MetadataRoute } from "next";
+import { siteConfig } from "@/config/site";
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api/"] },
+    sitemap: `${siteConfig.url}/sitemap.xml`,
+  };
+}
+
+================================================================================
+FILE: apps\web\src\app\search\page.tsx
+================================================================================
+
+import Link from "next/link";
+import { DestinationCard } from "@/components/cards/destination-card";
+import { HotelCard } from "@/components/cards/hotel-card";
+import { destinations, hotels, activities } from "@/data/mock";
+
+type Props = { searchParams: Promise<{ q?: string }> };
+
+export default async function SearchPage({ searchParams }: Props) {
+  const { q } = await searchParams;
+  const query = (q ?? "").toLowerCase();
+
+  const destResults = destinations.filter(
+    (d) =>
+      d.title.toLowerCase().includes(query) ||
+      d.location.toLowerCase().includes(query) ||
+      d.description.toLowerCase().includes(query)
+  );
+  const hotelResults = hotels.filter((h) => h.name.toLowerCase().includes(query));
+  const activityResults = activities.filter((a) => a.title.toLowerCase().includes(query));
+
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <h1 className="text-3xl font-bold text-ocean-900">
+        Search{query ? `: "${q}"` : ""}
+      </h1>
+      {!query && <p className="text-ocean-500 mt-2">Enter a search term from the homepage</p>}
+
+      {destResults.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-xl font-bold mb-6">Destinations</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {destResults.map((d, i) => (
+              <DestinationCard key={d.id} destination={d} delay={i * 0.05} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {hotelResults.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-xl font-bold mb-6">Hotels</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {hotelResults.map((h, i) => (
+              <HotelCard key={h.id} hotel={h} delay={i * 0.05} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activityResults.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-xl font-bold mb-6">Activities</h2>
+          <ul className="space-y-2">
+            {activityResults.map((a) => (
+              <li key={a.id}>
+                <Link href="/activities" className="text-ocean-600 hover:underline font-medium">
+                  {a.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {query && destResults.length === 0 && hotelResults.length === 0 && activityResults.length === 0 && (
+        <p className="text-ocean-500 mt-10">No results found. Try &quot;Le Morne&quot; or &quot;Grand Baie&quot;</p>
+      )}
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\shop\page.tsx
+================================================================================
+
+"use client";
+
+import Image from "next/image";
+import { ShoppingCart } from "lucide-react";
+import { shopProducts } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { formatMur } from "@/lib/utils";
+import { useState } from "react";
+
+export default function ShopPage() {
+  const [cart, setCart] = useState<string[]>([]);
+
+  const addToCart = (id: string) => setCart((c) => [...c, id]);
+
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <div className="flex justify-between items-start mb-10">
+        <div>
+          <h1 className="text-4xl font-bold text-ocean-900">Mauritius Marketplace</h1>
+          <p className="text-ocean-500 mt-2">Tea, crafts, rum, spices — authentic souvenirs delivered locally</p>
+        </div>
+        {cart.length > 0 && (
+          <Button variant="outline" className="gap-2">
+            <ShoppingCart className="h-4 w-4" /> Cart ({cart.length})
+          </Button>
+        )}
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {shopProducts.map((p, i) => (
+          <GlassCard key={p.id} delay={i * 0.05} className="overflow-hidden">
+            <div className="relative aspect-square">
+              <Image src={p.images[0]} alt={p.name} fill className="object-cover" />
+            </div>
+            <div className="p-5">
+              <span className="text-xs text-ocean-500">{p.category}</span>
+              <h2 className="font-semibold text-lg text-ocean-900">{p.name}</h2>
+              <p className="text-sm text-ocean-600 mt-1 line-clamp-2">{p.description}</p>
+              {p.seller && <p className="text-xs text-ocean-400 mt-2">Sold by {p.seller}</p>}
+              <div className="flex justify-between items-center mt-4">
+                <span className="font-bold text-ocean-700">{formatMur(p.price)}</span>
+                <Button size="sm" variant="sunset" onClick={() => addToCart(p.id)}>
+                  Add to cart
+                </Button>
+              </div>
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+      <p className="text-center text-sm text-ocean-500 mt-12">
+        Checkout integrates with Stripe — configure in production .env
+      </p>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\sitemap.ts
+================================================================================
+
+import { MetadataRoute } from "next";
+import { siteConfig } from "@/config/site";
+import { destinations, hotels, blogPosts, vlogs, guides } from "@/data/mock";
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  const base = siteConfig.url;
+  const staticRoutes = [
+    "",
+    "/destinations",
+    "/hotels",
+    "/activities",
+    "/restaurants",
+    "/trending",
+    "/trailers",
+    "/shop",
+    "/guides",
+    "/guides/offline",
+    "/vlogs",
+    "/transport/taxis",
+    "/itinerary",
+    "/blog",
+    "/about",
+    "/contact",
+  ].map((path) => ({
+    url: `${base}${path}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: path === "" ? 1 : 0.8,
+  }));
+
+  const dynamic = [
+    ...destinations.map((d) => ({ url: `${base}/destinations/${d.slug}`, lastModified: new Date() })),
+    ...hotels.map((h) => ({ url: `${base}/hotels/${h.slug}`, lastModified: new Date() })),
+    ...blogPosts.map((b) => ({ url: `${base}/blog/${b.slug}`, lastModified: new Date() })),
+    ...vlogs.map((v) => ({ url: `${base}/vlogs/${v.slug}`, lastModified: new Date() })),
+    ...guides.map((g) => ({ url: `${base}/guides/${g.slug}`, lastModified: new Date() })),
+  ];
+
+  return [...staticRoutes, ...dynamic];
+}
+
+================================================================================
+FILE: apps\web\src\app\trailers\page.tsx
+================================================================================
+
+import Image from "next/image";
+import Link from "next/link";
+import { Play } from "lucide-react";
+import { destinations, hotels, activities } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+
+const withTrailers = [
+  ...destinations.filter((d) => d.trailerUrl).map((d) => ({
+    type: "destination" as const,
+    title: d.title,
+    slug: d.slug,
+    image: d.trailerThumbnail ?? d.images[0],
+    href: `/destinations/${d.slug}`,
+  })),
+  ...hotels.filter((h) => h.trailerUrl).map((h) => ({
+    type: "hotel" as const,
+    title: h.name,
+    slug: h.slug,
+    image: h.images[0],
+    href: `/hotels/${h.slug}`,
+  })),
+  ...activities.filter((a) => a.trailerUrl).map((a) => ({
+    type: "activity" as const,
+    title: a.title,
+    slug: a.slug,
+    image: a.images[0],
+    href: `/activities#${a.slug}`,
+  })),
+];
+
+export default function TrailersPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">Place Trailers</h1>
+      <p className="text-ocean-500 mt-2 mb-10">
+        Preview destinations, hotels, and activities before you visit — cinematic video tours
+      </p>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {withTrailers.map((item) => (
+          <Link key={`${item.type}-${item.slug}`} href={item.href}>
+            <GlassCard className="overflow-hidden group">
+              <div className="relative aspect-video">
+                <Image src={item.image} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40">
+                  <span className="rounded-full bg-white p-4 shadow-luxury">
+                    <Play className="h-8 w-8 fill-ocean-600 text-ocean-600 ml-1" />
+                  </span>
+                </div>
+                <span className="absolute top-3 left-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full capitalize">
+                  {item.type}
+                </span>
+              </div>
+              <p className="p-4 font-semibold text-ocean-900">{item.title}</p>
+            </GlassCard>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\transport\taxis\page.tsx
+================================================================================
+
+"use client";
+
+import { useState } from "react";
+import { Car, Moon, Sun, Info, Calculator } from "lucide-react";
+import { taxiRoutes } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+import { formatMur, formatUsdFromMur } from "@/lib/utils";
+
+export default function TaxiFaresPage() {
+  const [nightMode, setNightMode] = useState(false);
+
+  return (
+    <div className="pt-28 pb-16 max-w-5xl mx-auto px-4">
+      <div className="flex items-center gap-3 mb-2">
+        <Car className="h-10 w-10 text-ocean-500" />
+        <h1 className="text-4xl font-bold text-ocean-900">Taxi Fares in Mauritius</h1>
+      </div>
+      <p className="text-ocean-500 mb-8">
+        Typical fixed fares between popular routes. Always confirm price before departure.
+      </p>
+
+      <GlassCard className="p-6 mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setNightMode(false)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${!nightMode ? "bg-ocean-500 text-white" : "bg-ocean-50 text-ocean-600"}`}
+          >
+            <Sun className="h-4 w-4" /> Day fares
+          </button>
+          <button
+            type="button"
+            onClick={() => setNightMode(true)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${nightMode ? "bg-ocean-700 text-white" : "bg-ocean-50 text-ocean-600"}`}
+          >
+            <Moon className="h-4 w-4" /> Night (+25–35%)
+          </button>
+        </div>
+        <p className="text-sm text-ocean-600 flex items-start gap-2">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          Airport taxis often use fixed boards. Metered taxis: ~Rs 25–40/km.
+        </p>
+      </GlassCard>
+
+      <div className="space-y-4">
+        {taxiRoutes.map((route) => {
+          const fare = nightMode && route.nightFareMur ? route.nightFareMur : route.dayFareMur;
+          return (
+            <GlassCard key={route.id} className="p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-ocean-900 text-lg">
+                    {route.fromLocation} → {route.toLocation}
+                  </p>
+                  <p className="text-sm text-ocean-500 mt-1">
+                    {route.region}
+                    {route.distanceKm && ` · ~${route.distanceKm} km`}
+                    {route.estimatedMinutes && ` · ~${route.estimatedMinutes} min`}
+                  </p>
+                  {route.notes && (
+                    <p className="text-xs text-ocean-500 mt-2 italic">{route.notes}</p>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-2xl font-bold text-ocean-700">{formatMur(fare)}</p>
+                  <p className="text-sm text-ocean-400">≈ {formatUsdFromMur(fare)}</p>
+                </div>
+              </div>
+            </GlassCard>
+          );
+        })}
+      </div>
+
+      <GlassCard className="p-8 mt-12">
+        <h2 className="text-xl font-bold flex items-center gap-2 text-ocean-900">
+          <Calculator className="h-5 w-5" /> Quick tips
+        </h2>
+        <ul className="mt-4 space-y-2 text-ocean-700 text-sm list-disc list-inside">
+          <li>SSR Airport → Grand Baie: negotiate ~MUR 2,000–2,500 day / higher at night</li>
+          <li>Use official airport taxi counter for fixed rates</li>
+          <li>Uber/Bolt limited — pre-book private transfers for reliability</li>
+          <li>Bus (National Transport) cheapest option — see vlogs for routes</li>
+          <li>Car rental: ~MUR 1,500–3,500/day depending on vehicle</li>
+        </ul>
+        <p className="mt-6 text-sm">
+          Watch: <a href="/vlogs/how-to-get-taxi-mauritius" className="text-ocean-600 underline font-medium">How to get a taxi in Mauritius (vlog)</a>
+        </p>
+      </GlassCard>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\trending\page.tsx
+================================================================================
+
+import Image from "next/image";
+import Link from "next/link";
+import { TrendingUp, Flame } from "lucide-react";
+import { trendingItems, destinations, hotels } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+
+function hrefFor(item: (typeof trendingItems)[0]) {
+  switch (item.type) {
+    case "destination": return `/destinations/${item.slug}`;
+    case "hotel": return `/hotels/${item.slug}`;
+    case "vlog": return `/vlogs/${item.slug}`;
+    case "guide": return `/guides/${item.slug}`;
+    default: return `/activities#${item.slug}`;
+  }
+}
+
+export default function TrendingPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <div className="flex items-center gap-3 mb-2">
+        <TrendingUp className="h-10 w-10 text-sunset" />
+        <h1 className="text-4xl font-bold text-ocean-900">Trending in Mauritius</h1>
+      </div>
+      <p className="text-ocean-500 mb-12">Updated weekly — hottest places, hotels, guides, and vlogs</p>
+
+      <section className="mb-16">
+        <h2 className="text-2xl font-bold text-ocean-900 mb-6 flex items-center gap-2">
+          <Flame className="h-6 w-6 text-sunset" /> Top 5 This Week
+        </h2>
+        <div className="space-y-4">
+          {trendingItems.map((item, i) => (
+            <Link key={item.id} href={hrefFor(item)}>
+              <GlassCard className="flex items-center gap-6 p-4 hover:border-ocean-200">
+                <span className="text-3xl font-bold text-ocean-200 w-12 text-center">#{i + 1}</span>
+                <div className="relative w-24 h-24 rounded-xl overflow-hidden shrink-0">
+                  <Image src={item.image} alt={item.title} fill className="object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs uppercase text-ocean-500">{item.type}</p>
+                  <h3 className="text-lg font-semibold text-ocean-900 truncate">{item.title}</h3>
+                  <p className="text-sm text-ocean-500">{item.subtitle}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-2xl font-bold text-sunset">{item.score}</p>
+                  <p className="text-xs text-ocean-400">trend score</p>
+                </div>
+              </GlassCard>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-2xl font-bold mb-6">Rising Destinations</h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {destinations
+            .sort((a, b) => (b.trendingScore ?? 0) - (a.trendingScore ?? 0))
+            .map((d) => (
+              <Link key={d.id} href={`/destinations/${d.slug}`}>
+                <GlassCard className="overflow-hidden">
+                  <div className="relative aspect-[4/3]">
+                    <Image src={d.images[0]} alt={d.title} fill className="object-cover" />
+                  </div>
+                  <p className="p-3 font-medium text-ocean-900">{d.title}</p>
+                </GlassCard>
+              </Link>
+            ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\vlogs\[slug]\page.tsx
+================================================================================
+
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { getVlogBySlug } from "@/data/mock";
+import { Button } from "@/components/ui/button";
+
+type Props = { params: Promise<{ slug: string }> };
+
+export default async function VlogDetailPage({ params }: Props) {
+  const { slug } = await params;
+  const vlog = getVlogBySlug(slug);
+  if (!vlog) notFound();
+
+  return (
+    <div className="pt-28 pb-20 max-w-4xl mx-auto px-4">
+      <div className="aspect-video rounded-2xl overflow-hidden bg-black mb-8">
+        <iframe
+          src={vlog.videoUrl}
+          title={vlog.title}
+          className="w-full h-full"
+          allowFullScreen
+        />
+      </div>
+      <h1 className="text-3xl font-bold text-ocean-900">{vlog.title}</h1>
+      <p className="text-ocean-500 mt-2">
+        {vlog.author} · {vlog.duration} · {vlog.viewCount.toLocaleString()} views
+      </p>
+      <p className="mt-6 text-ocean-700 leading-relaxed">{vlog.description}</p>
+      <div className="flex flex-wrap gap-2 mt-6">
+        {vlog.tags.map((t) => (
+          <span key={t} className="text-xs bg-ocean-50 text-ocean-600 px-3 py-1 rounded-full">
+            #{t}
+          </span>
+        ))}
+      </div>
+      {vlog.category === "Transport" && (
+        <Link href="/transport/taxis" className="inline-block mt-8">
+          <Button variant="outline">View full taxi fare table →</Button>
+        </Link>
+      )}
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\app\vlogs\page.tsx
+================================================================================
+
+import Image from "next/image";
+import Link from "next/link";
+import { Play, Eye } from "lucide-react";
+import { vlogs } from "@/data/mock";
+import { GlassCard } from "@/components/ui/glass-card";
+
+export default function VlogsPage() {
+  return (
+    <div className="pt-28 pb-16 max-w-7xl mx-auto px-4">
+      <h1 className="text-4xl font-bold text-ocean-900">Travel Vlogs</h1>
+      <p className="text-ocean-500 mt-2 mb-10">
+        Learn from creators — taxi tips, itineraries, hiking, culture, and hidden gems
+      </p>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {vlogs.map((v) => (
+          <Link key={v.id} href={`/vlogs/${v.slug}`}>
+            <GlassCard className="overflow-hidden group h-full">
+              <div className="relative aspect-video">
+                <Image src={v.thumbnail} alt={v.title} fill className="object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/35 transition-colors">
+                  <Play className="h-12 w-12 text-white fill-white" />
+                </div>
+                <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
+                  {v.duration}
+                </span>
+              </div>
+              <div className="p-5">
+                <span className="text-xs text-ocean-500">{v.category}</span>
+                <h2 className="font-semibold text-ocean-900 mt-1 line-clamp-2">{v.title}</h2>
+                <p className="text-sm text-ocean-500 mt-2 flex items-center gap-1">
+                  <Eye className="h-3.5 w-3.5" />
+                  {v.viewCount.toLocaleString()} views
+                </p>
+              </div>
+            </GlassCard>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\cards\destination-card.tsx
+================================================================================
+
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { MapPin, Star, Play } from "lucide-react";
+import { GlassCard } from "@/components/ui/glass-card";
+import type { Destination } from "@/types";
+
+interface DestinationCardProps {
+  destination: Destination;
+  delay?: number;
+}
+
+export function DestinationCard({ destination, delay = 0 }: DestinationCardProps) {
+  return (
+    <Link href={`/destinations/${destination.slug}`}>
+      <GlassCard delay={delay} className="overflow-hidden group h-full">
+        <div className="relative aspect-[4/3] overflow-hidden">
+          <Image
+            src={destination.images[0]}
+            alt={destination.title}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 768px) 100vw, 33vw"
+          />
+          {destination.trailerUrl && (
+            <span className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-xs text-white backdrop-blur">
+              <Play className="h-3 w-3 fill-white" /> Trailer
+            </span>
+          )}
+          <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-xs font-medium capitalize text-ocean-700">
+            {destination.category.replace("_", " ")}
+          </span>
+        </div>
+        <div className="p-5">
+          <h3 className="font-semibold text-lg text-ocean-900 group-hover:text-ocean-600 transition-colors">
+            {destination.title}
+          </h3>
+          <p className="flex items-center gap-1 text-sm text-ocean-500 mt-1">
+            <MapPin className="h-3.5 w-3.5" />
+            {destination.location}
+          </p>
+          <div className="flex items-center gap-1 mt-3 text-sm">
+            <Star className="h-4 w-4 fill-sunset text-sunset" />
+            <span className="font-medium">{destination.rating}</span>
+            <span className="text-ocean-400">({destination.reviewCount})</span>
+          </div>
+        </div>
+      </GlassCard>
+    </Link>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\cards\hotel-card.tsx
+================================================================================
+
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { Star, Waves } from "lucide-react";
+import { GlassCard } from "@/components/ui/glass-card";
+import { formatMur } from "@/lib/utils";
+import type { Hotel } from "@/types";
+
+export function HotelCard({ hotel, delay = 0 }: { hotel: Hotel; delay?: number }) {
+  return (
+    <Link href={`/hotels/${hotel.slug}`}>
+      <GlassCard delay={delay} className="overflow-hidden group h-full">
+        <div className="relative aspect-[4/3]">
+          <Image src={hotel.images[0]} alt={hotel.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="33vw" />
+          {hotel.featured && (
+            <span className="absolute top-3 left-3 bg-sunset text-white text-xs font-semibold px-3 py-1 rounded-full">
+              Featured
+            </span>
+          )}
+          {hotel.beachfront && (
+            <span className="absolute top-3 right-3 bg-ocean-500/90 text-white p-1.5 rounded-full">
+              <Waves className="h-4 w-4" />
+            </span>
+          )}
+        </div>
+        <div className="p-5">
+          <h3 className="font-semibold text-lg text-ocean-900">{hotel.name}</h3>
+          <p className="text-sm text-ocean-500 mt-1">{hotel.location}</p>
+          <div className="flex justify-between items-center mt-4">
+            <div className="flex items-center gap-1 text-sm">
+              <Star className="h-4 w-4 fill-sunset text-sunset" />
+              {hotel.rating} ({hotel.reviewCount})
+            </div>
+            <p className="text-sm font-semibold text-ocean-700">
+              from {formatMur(hotel.priceFrom)}
+            </p>
+          </div>
+        </div>
+      </GlassCard>
+    </Link>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\home\hero-section.tsx
+================================================================================
+
+"use client";
+
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { SearchBar } from "@/components/shared/search-bar";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Map, Play } from "lucide-react";
+
+export function HeroSection() {
+  return (
+    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage:
+            "linear-gradient(to bottom, rgba(4,29,41,0.4), rgba(4,29,41,0.85)), url(https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1920&q=80)",
+        }}
+      />
+      <div className="absolute inset-0 bg-island-gradient opacity-20 mix-blend-overlay" />
+
+      <div className="relative z-10 max-w-5xl mx-auto px-4 text-center text-white pt-32 pb-20">
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-emerald-island font-medium tracking-widest uppercase text-sm mb-4"
+        >
+          Premium Mauritius Tourism
+        </motion.p>
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6"
+        >
+          Discover Paradise,
+          <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-island to-sunset-light">
+            Plan Like a Local
+          </span>
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-lg text-white/85 max-w-2xl mx-auto mb-10"
+        >
+          Beaches, hotels, guides, taxi fares, video trailers, vlogs, offline maps, and AI itineraries — everything for your Mauritius adventure.
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="flex justify-center mb-8"
+        >
+          <SearchBar placeholder="Search Le Morne, Grand Baie, hotels..." />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="flex flex-wrap justify-center gap-3"
+        >
+          <Link href="/itinerary">
+            <Button variant="sunset" size="lg">
+              <Sparkles className="h-4 w-4" /> AI Trip Planner
+            </Button>
+          </Link>
+          <Link href="/trailers">
+            <Button variant="secondary" size="lg" className="bg-white/20 border-white/30 text-white hover:bg-white/30">
+              <Play className="h-4 w-4" /> Watch Trailers
+            </Button>
+          </Link>
+          <Link href="/destinations">
+            <Button variant="ghost" size="lg">
+              <Map className="h-4 w-4" /> Explore Map
+            </Button>
+          </Link>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\layout\footer.tsx
+================================================================================
+
+import Link from "next/link";
+import { Palmtree, Mail, MessageCircle } from "lucide-react";
+import { siteConfig } from "@/config/site";
+
+export function Footer() {
+  const wa = siteConfig.whatsapp.replace(/\D/g, "");
+
+  return (
+    <footer className="bg-ocean-900 text-white/90 mt-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+          <div>
+            <div className="flex items-center gap-2 text-xl font-semibold mb-4">
+              <Palmtree className="h-6 w-6 text-emerald-island" />
+              {siteConfig.name}
+            </div>
+            <p className="text-sm text-white/70 leading-relaxed">{siteConfig.description}</p>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4 text-white">Explore</h4>
+            <ul className="space-y-2 text-sm text-white/70">
+              {["/destinations", "/hotels", "/activities", "/trending", "/trailers"].map((href) => (
+                <li key={href}>
+                  <Link href={href} className="hover:text-white transition-colors capitalize">
+                    {href.replace("/", "").replace("-", " ")}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4 text-white">Travel Tools</h4>
+            <ul className="space-y-2 text-sm text-white/70">
+              <li><Link href="/itinerary" className="hover:text-white">AI Trip Planner</Link></li>
+              <li><Link href="/transport/taxis" className="hover:text-white">Taxi Fares</Link></li>
+              <li><Link href="/guides" className="hover:text-white">Local Guides</Link></li>
+              <li><Link href="/guides/offline" className="hover:text-white">Offline Guides</Link></li>
+              <li><Link href="/vlogs" className="hover:text-white">Travel Vlogs</Link></li>
+              <li><Link href="/shop" className="hover:text-white">Souvenir Shop</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4 text-white">Contact</h4>
+            <ul className="space-y-3 text-sm">
+              <li>
+                <Link href="/contact" className="flex items-center gap-2 text-white/70 hover:text-white">
+                  <Mail className="h-4 w-4" /> Inquiry form
+                </Link>
+              </li>
+              <li>
+                <a
+                  href={`https://wa.me/${wa}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-emerald-island hover:text-white"
+                >
+                  <MessageCircle className="h-4 w-4" /> WhatsApp support
+                </a>
+              </li>
+            </ul>
+            <p className="mt-6 text-xs text-white/50">Languages: EN · FR · HI · AR · DE</p>
+          </div>
+        </div>
+        <div className="border-t border-white/10 mt-12 pt-8 flex flex-col sm:flex-row justify-between gap-4 text-xs text-white/50">
+          <p>© {new Date().getFullYear()} Mauritius Island Guide. All rights reserved.</p>
+          <div className="flex gap-4">
+            <Link href="/about">About Mauritius</Link>
+            <Link href="/blog">Blog</Link>
+            <Link href="/admin">Admin</Link>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\layout\mobile-nav.tsx
+================================================================================
+
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Home, Map, Hotel, Compass, User } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const tabs = [
+  { href: "/", icon: Home, label: "Home" },
+  { href: "/destinations", icon: Map, label: "Explore" },
+  { href: "/hotels", icon: Hotel, label: "Hotels" },
+  { href: "/itinerary", icon: Compass, label: "Plan" },
+  { href: "/dashboard", icon: User, label: "You" },
+];
+
+export function MobileNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-ocean-100 bg-white/95 backdrop-blur-lg safe-area-pb">
+      <div className="flex justify-around items-center h-16 px-2">
+        {tabs.map(({ href, icon: Icon, label }) => {
+          const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex flex-col items-center gap-0.5 text-xs font-medium transition-colors min-w-[56px]",
+                active ? "text-ocean-600" : "text-ocean-400"
+              )}
+            >
+              <Icon className={cn("h-5 w-5", active && "text-emerald-island")} />
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\layout\navbar.tsx
+================================================================================
+
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { Menu, X, Palmtree, Globe, User } from "lucide-react";
+import { siteConfig } from "@/config/site";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export function Navbar() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50">
+      <nav
+        className={cn(
+          "mx-auto max-w-7xl px-4 sm:px-6 lg:px-8",
+          "mt-4 rounded-2xl border border-white/20 bg-white/80 backdrop-blur-xl shadow-glass"
+        )}
+      >
+        <div className="flex h-16 items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-display text-xl font-semibold text-ocean-700">
+            <Palmtree className="h-7 w-7 text-emerald-island" />
+            <span className="hidden sm:inline">{siteConfig.name}</span>
+          </Link>
+
+          <div className="hidden lg:flex items-center gap-1">
+            {siteConfig.nav.slice(0, 8).map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="px-3 py-2 text-sm text-ocean-700/80 hover:text-ocean-600 rounded-lg hover:bg-ocean-50 transition-colors"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="p-2 rounded-full hover:bg-ocean-50 text-ocean-600"
+              aria-label="Language"
+            >
+              <Globe className="h-5 w-5" />
+            </button>
+            <Link href="/dashboard">
+              <Button variant="secondary" size="sm" className="hidden sm:inline-flex">
+                <User className="h-4 w-4" />
+                Account
+              </Button>
+            </Link>
+            <Link href="/itinerary">
+              <Button size="sm" className="hidden md:inline-flex">Plan Trip</Button>
+            </Link>
+            <button
+              type="button"
+              className="lg:hidden p-2 rounded-lg hover:bg-ocean-50"
+              onClick={() => setOpen(!open)}
+              aria-label="Menu"
+            >
+              {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+        </div>
+
+        {open && (
+          <div className="lg:hidden pb-4 border-t border-ocean-100 mt-2 pt-4 grid gap-1 max-h-[70vh] overflow-y-auto">
+            {siteConfig.nav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className="px-4 py-3 text-sm font-medium text-ocean-700 hover:bg-ocean-50 rounded-lg"
+              >
+                {item.label}
+              </Link>
+            ))}
+            <Link href="/trailers" onClick={() => setOpen(false)} className="px-4 py-3 text-sm text-ocean-700 hover:bg-ocean-50 rounded-lg">
+              Trailers
+            </Link>
+            <Link href="/guides/offline" onClick={() => setOpen(false)} className="px-4 py-3 text-sm text-ocean-700 hover:bg-ocean-50 rounded-lg">
+              Offline Guides
+            </Link>
+          </div>
+        )}
+      </nav>
+    </header>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\shared\filter-chips.tsx
+================================================================================
+
+"use client";
+
+import { cn } from "@/lib/utils";
+import type { FilterTags } from "@/types";
+
+const filters: { id: FilterTags; label: string }[] = [
+  { id: "budget", label: "Budget" },
+  { id: "family", label: "Family" },
+  { id: "luxury", label: "Luxury" },
+  { id: "adventure", label: "Adventure" },
+  { id: "romantic", label: "Romantic" },
+  { id: "nightlife", label: "Nightlife" },
+  { id: "eco", label: "Eco" },
+];
+
+interface FilterChipsProps {
+  active: FilterTags[];
+  onChange: (tags: FilterTags[]) => void;
+}
+
+export function FilterChips({ active, onChange }: FilterChipsProps) {
+  const toggle = (id: FilterTags) => {
+    onChange(active.includes(id) ? active.filter((t) => t !== id) : [...active, id]);
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {filters.map(({ id, label }) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => toggle(id)}
+          className={cn(
+            "px-4 py-2 rounded-full text-sm font-medium transition-all",
+            active.includes(id)
+              ? "bg-ocean-500 text-white shadow-md"
+              : "bg-white/80 text-ocean-600 border border-ocean-100 hover:border-ocean-300"
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\shared\search-bar.tsx
+================================================================================
+
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+export function SearchBar({ placeholder = "Search destinations, hotels, activities..." }: { placeholder?: string }) {
+  const [q, setQ] = useState("");
+  const router = useRouter();
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (q.trim()) router.push(`/search?q=${encodeURIComponent(q.trim())}`);
+  };
+
+  return (
+    <form onSubmit={submit} className="flex w-full max-w-2xl gap-2">
+      <div className="relative flex-1">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ocean-400" />
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={placeholder}
+          className="w-full h-12 pl-12 pr-4 rounded-full border border-white/40 bg-white/90 backdrop-blur text-ocean-900 placeholder:text-ocean-400 focus:outline-none focus:ring-2 focus:ring-ocean-400 shadow-glass"
+        />
+      </div>
+      <Button type="submit" variant="sunset" size="lg">
+        Search
+      </Button>
+    </form>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\shared\video-trailer.tsx
+================================================================================
+
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import { Play, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+interface VideoTrailerProps {
+  title: string;
+  trailerUrl: string;
+  thumbnail?: string;
+  className?: string;
+}
+
+export function VideoTrailer({ title, trailerUrl, thumbnail, className }: VideoTrailerProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`relative w-full aspect-video rounded-2xl overflow-hidden group ${className}`}
+      >
+        {thumbnail ? (
+          <Image src={thumbnail} alt={`${title} trailer`} fill className="object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-island-gradient" />
+        )}
+        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+          <span className="flex items-center gap-2 rounded-full bg-white/95 px-6 py-3 text-ocean-800 font-semibold shadow-luxury">
+            <Play className="h-5 w-5 fill-ocean-600 text-ocean-600" />
+            Watch Trailer
+          </span>
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
+            onClick={() => setOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden bg-black"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/20 text-white hover:bg-white/30"
+                aria-label="Close"
+              >
+                <X className="h-6 w-6" />
+              </button>
+              <iframe
+                src={trailerUrl}
+                title={`${title} trailer`}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\components\ui\button.tsx
+================================================================================
+
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-ocean-500 text-white hover:bg-ocean-600 shadow-lg shadow-ocean-500/25",
+        secondary: "bg-white/90 text-ocean-700 hover:bg-white border border-ocean-100",
+        outline: "border-2 border-ocean-500 text-ocean-600 hover:bg-ocean-50",
+        ghost: "hover:bg-white/20 text-white",
+        sunset: "bg-sunset text-white hover:bg-sunset-dark shadow-lg shadow-sunset/30",
+        emerald: "bg-emerald-island text-white hover:bg-emerald-deep",
+      },
+      size: {
+        default: "h-11 px-6 py-2",
+        sm: "h-9 px-4 text-xs",
+        lg: "h-12 px-8 text-base",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: { variant: "default", size: "default" },
+  }
+);
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+Button.displayName = "Button";
+
+export { Button, buttonVariants };
+
+================================================================================
+FILE: apps\web\src\components\ui\glass-card.tsx
+================================================================================
+
+"use client";
+
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+interface GlassCardProps {
+  children: React.ReactNode;
+  className?: string;
+  hover?: boolean;
+  delay?: number;
+}
+
+export function GlassCard({
+  children,
+  className,
+  hover = true,
+  delay = 0,
+}: GlassCardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-40px" }}
+      transition={{ duration: 0.5, delay }}
+      whileHover={hover ? { y: -4, scale: 1.01 } : undefined}
+      className={cn(
+        "rounded-2xl border border-white/30 bg-white/70 backdrop-blur-xl shadow-glass",
+        "dark:bg-white/10 dark:border-white/10",
+        className
+      )}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+================================================================================
+FILE: apps\web\src\config\site.ts
+================================================================================
+
+export const siteConfig = {
+  name: "Mauritius Island Guide",
+  tagline: "Your premium digital gateway to paradise",
+  description:
+    "Discover beaches, hotels, activities, local guides, taxi fares, vlogs, and shop authentic Mauritian crafts — the #1 modern tourism platform for Mauritius.",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  whatsapp: process.env.NEXT_PUBLIC_WHATSAPP ?? "+23051234567",
+  locales: ["en", "fr", "hi", "ar", "de"] as const,
+  nav: [
+    { href: "/destinations", label: "Destinations" },
+    { href: "/hotels", label: "Hotels" },
+    { href: "/activities", label: "Activities" },
+    { href: "/restaurants", label: "Restaurants" },
+    { href: "/trending", label: "Trending" },
+    { href: "/guides", label: "Guides" },
+    { href: "/vlogs", label: "Vlogs" },
+    { href: "/shop", label: "Shop" },
+    { href: "/transport/taxis", label: "Taxis" },
+    { href: "/itinerary", label: "Plan Trip" },
+    { href: "/blog", label: "Blog" },
+  ],
+  categories: [
+    { slug: "beach", label: "Beaches", icon: "Waves" },
+    { slug: "waterfall", label: "Waterfalls", icon: "Droplets" },
+    { slug: "hiking", label: "Hiking", icon: "Mountain" },
+    { slug: "cultural", label: "Culture", icon: "Landmark" },
+    { slug: "island", label: "Islands", icon: "Palmtree" },
+    { slug: "nightlife", label: "Nightlife", icon: "Moon" },
+  ],
+};
+
+================================================================================
+FILE: apps\web\src\data\mock.ts
+================================================================================
+
+import type {
+  Activity,
+  BlogPost,
+  Destination,
+  Guide,
+  Hotel,
+  Restaurant,
+  ShopProduct,
+  TaxiRoute,
+  TrendingItem,
+  Vlog,
+} from "@/types";
+
+const img = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?w=1200&q=80`;
+
+export const destinations: Destination[] = [
+  {
+    id: "1",
+    slug: "le-morne-beach",
+    title: "Le Morne Beach",
+    description:
+      "Iconic UNESCO peninsula with turquoise lagoon, kite surfing, and dramatic Le Morne Brabant mountain backdrop. Perfect for luxury and adventure travelers.",
+    category: "beach",
+    images: [img("1507525428039-b5b6848e1f7a"), img("1519046900024-ff56b6389a0e")],
+    trailerUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    trailerThumbnail: img("1507525428039-b5b6848e1f7a"),
+    location: "Le Morne, Black River",
+    region: "South-West",
+    latitude: -20.4453,
+    longitude: 57.3272,
+    bestTimeToVisit: "May – November (dry season)",
+    familyFriendly: true,
+    luxury: true,
+    adventure: true,
+    romantic: true,
+    rating: 4.9,
+    reviewCount: 1240,
+    trendingScore: 98,
+  },
+  {
+    id: "2",
+    slug: "chamarel-waterfall",
+    title: "Chamarel Waterfall",
+    description:
+      "Mauritius' highest single-drop waterfall at 100m, surrounded by lush greenery and the famous Seven Coloured Earths nearby.",
+    category: "waterfall",
+    images: [img("1432405972618-c60b3715a132")],
+    trailerUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    location: "Chamarel, Black River",
+    region: "South-West",
+    latitude: -20.4261,
+    longitude: 57.3856,
+    bestTimeToVisit: "Year-round; mornings best",
+    entryFee: 200,
+    familyFriendly: true,
+    luxury: false,
+    adventure: true,
+    romantic: true,
+    rating: 4.8,
+    reviewCount: 890,
+    trendingScore: 92,
+  },
+  {
+    id: "3",
+    slug: "grand-baas-lagoon",
+    title: "Grand Baie",
+    description:
+      "The vibrant north coast hub for shopping, nightlife, boat trips, and beach clubs. Gateway to northern islets.",
+    category: "beach",
+    images: [img("1544551763-46a013bb70d5")],
+    location: "Grand Baie, Rivière du Rempart",
+    region: "North",
+    latitude: -20.0131,
+    longitude: 57.5806,
+    bestTimeToVisit: "October – April",
+    familyFriendly: true,
+    luxury: false,
+    adventure: false,
+    romantic: false,
+    rating: 4.5,
+    reviewCount: 2100,
+    trendingScore: 95,
+  },
+  {
+    id: "4",
+    slug: "black-river-gorges",
+    title: "Black River Gorges National Park",
+    description:
+      "Hiking trails through endemic forest, macaque sightings, and panoramic viewpoints over the south-west coast.",
+    category: "hiking",
+    images: [img("1441974231531-c6227db76b6e")],
+    location: "Black River Gorges",
+    region: "South-West",
+    latitude: -20.4083,
+    longitude: 57.4431,
+    bestTimeToVisit: "Cooler months May–Sep",
+    familyFriendly: true,
+    luxury: false,
+    adventure: true,
+    romantic: false,
+    rating: 4.7,
+    reviewCount: 560,
+    trendingScore: 88,
+  },
+  {
+    id: "5",
+    slug: "port-louis-market",
+    title: "Port Louis Central Market",
+    description:
+      "Authentic street food, spices, crafts, and local culture in the capital's bustling market district.",
+    category: "market",
+    images: [img("1555396273-367ea4eb4db5")],
+    location: "Port Louis",
+    region: "North-West",
+    latitude: -20.1609,
+    longitude: 57.5012,
+    familyFriendly: true,
+    luxury: false,
+    adventure: false,
+    romantic: false,
+    rating: 4.4,
+    reviewCount: 780,
+    trendingScore: 85,
+  },
+];
+
+export const hotels: Hotel[] = [
+  {
+    id: "h1",
+    slug: "lux-le-morne",
+    name: "LUX* Le Morne",
+    description:
+      "Five-star beach resort at the foot of Le Morne with spa, diving centre, and sunset-facing pools.",
+    images: [img("1566073771259-6a8506099945")],
+    trailerUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    priceFrom: 18500,
+    priceTo: 45000,
+    currency: "MUR",
+    rating: 4.9,
+    reviewCount: 420,
+    amenities: ["Spa", "Pool", "Beach", "Diving", "Restaurant", "WiFi"],
+    beachfront: true,
+    luxury: true,
+    familyFriendly: true,
+    location: "Le Morne",
+    region: "South-West",
+    featured: true,
+    bookingUrl: "#book",
+  },
+  {
+    id: "h2",
+    slug: "constance-belle-mare",
+    name: "Constance Belle Mare Plage",
+    description:
+      "Legendary east coast resort with two championship golf courses and lagoon access.",
+    images: [img("1582719508461-905c593771de")],
+    priceFrom: 22000,
+    currency: "MUR",
+    rating: 4.8,
+    reviewCount: 680,
+    amenities: ["Golf", "Spa", "Kids Club", "Beach", "Tennis"],
+    beachfront: true,
+    luxury: true,
+    familyFriendly: true,
+    location: "Belle Mare",
+    region: "East",
+    featured: true,
+  },
+  {
+    id: "h3",
+    slug: "veranda-grand-baie",
+    name: "Veranda Grand Baie",
+    description: "Boutique hotel steps from Grand Baie beach and nightlife.",
+    images: [img("1520250497591-112deb8e05a6")],
+    priceFrom: 6500,
+    currency: "MUR",
+    rating: 4.5,
+    reviewCount: 310,
+    amenities: ["Pool", "Restaurant", "WiFi"],
+    beachfront: false,
+    luxury: false,
+    familyFriendly: true,
+    location: "Grand Baie",
+    region: "North",
+  },
+];
+
+export const activities: Activity[] = [
+  {
+    id: "a1",
+    slug: "catamaran-north-islets",
+    title: "Catamaran Cruise to Northern Islets",
+    description: "Full-day sailing with BBQ, snorkelling at Gabriel Island, and dolphin spotting.",
+    category: "Boat Tours",
+    images: [img("1544551763-46a013bb70d5")],
+    trailerUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    duration: "7 hours",
+    priceFrom: 2500,
+    location: "Grand Baie",
+    region: "North",
+    rating: 4.9,
+  },
+  {
+    id: "a2",
+    slug: "swim-with-dolphins",
+    title: "Swim with Wild Dolphins",
+    description: "Early morning boat trip off Tamarin or Flic en Flac to encounter spinner dolphins.",
+    category: "Wildlife",
+    images: [img("1559827260-dc66d52bef19")],
+    duration: "3 hours",
+    priceFrom: 1800,
+    location: "Tamarin",
+    region: "West",
+    rating: 4.7,
+  },
+  {
+    id: "a3",
+    slug: "underwater-waterfall-helicopter",
+    title: "Underwater Waterfall Helicopter Tour",
+    description: "Scenic flight over the famous optical illusion off Le Morne peninsula.",
+    category: "Adventure",
+    images: [img("1436491865332-7a61a109cc05")],
+    duration: "45 min",
+    priceFrom: 12000,
+    location: "SSR Airport area",
+    region: "South",
+    rating: 5.0,
+  },
+];
+
+export const restaurants: Restaurant[] = [
+  {
+    id: "r1",
+    slug: "domaine-de-labourdonnais",
+    name: "Château de Labourdonnais",
+    description: "Fine dining in a colonial château with orchard tours and rum tasting.",
+    category: "Luxury Dining",
+    images: [img("1414235077428-338989a2e8c0")],
+    cuisine: ["French", "Mauritian Fusion"],
+    priceRange: "$$$$",
+    rating: 4.8,
+    location: "Mapou",
+    region: "North",
+  },
+  {
+    id: "r2",
+    slug: "grill-waterfront-caudan",
+    name: "Le Caudan Waterfront Grill",
+    description: "Seafood grill with harbour views in Port Louis.",
+    category: "Seafood",
+    images: [img("1559339352-11d035aa65de")],
+    cuisine: ["Seafood", "Grill"],
+    priceRange: "$$",
+    rating: 4.3,
+    location: "Port Louis",
+    region: "North-West",
+  },
+];
+
+export const guides: Guide[] = [
+  {
+    id: "g1",
+    slug: "raj-local-guide",
+    displayName: "Raj Kumar",
+    bio: "Born in Chamarel, 12 years guiding hikers and culture tours across the south-west. Speaks English, French, Hindi.",
+    avatar: img("1507003211169-0b1dd7228f2d"),
+    languages: ["English", "French", "Hindi"],
+    specialties: ["Hiking", "Waterfalls", "Culture", "Photography"],
+    hourlyRate: 800,
+    dailyRate: 5500,
+    currency: "MUR",
+    rating: 4.9,
+    reviewCount: 156,
+    verified: true,
+    offlinePackUrl: "/downloads/raj-offline-guide.zip",
+    offlinePackSize: "24 MB",
+    whatsapp: "+23057123456",
+  },
+  {
+    id: "g2",
+    slug: "marie-north-coast",
+    displayName: "Marie Duval",
+    bio: "North coast specialist — catamaran prep, Grand Baie nightlife, and family-friendly beach days.",
+    languages: ["English", "French", "Creole"],
+    specialties: ["Beaches", "Boat trips", "Nightlife", "Families"],
+    hourlyRate: 750,
+    dailyRate: 5000,
+    currency: "MUR",
+    rating: 4.8,
+    reviewCount: 98,
+    verified: true,
+    offlinePackUrl: "/downloads/marie-offline-guide.zip",
+    offlinePackSize: "18 MB",
+  },
+];
+
+export const vlogs: Vlog[] = [
+  {
+    id: "v1",
+    slug: "how-to-get-taxi-mauritius",
+    title: "How to Get a Taxi in Mauritius — Fares & Tips",
+    description:
+      "Complete guide: airport taxis, metered vs fixed fares, night surcharges, and how to avoid scams.",
+    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    thumbnail: img("1449965408869-a00be7ff4772"),
+    duration: "12:40",
+    category: "Transport",
+    tags: ["taxi", "transport", "tips"],
+    viewCount: 45200,
+    author: "Island Explorer",
+  },
+  {
+    id: "v2",
+    slug: "7-day-mauritius-itinerary",
+    title: "Perfect 7-Day Mauritius Itinerary (2025)",
+    description: "Day-by-day route covering north, east, south-west, and hidden gems.",
+    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    thumbnail: img("1488646953012-85cb44e25848"),
+    duration: "18:22",
+    category: "Itinerary",
+    tags: ["itinerary", "planning"],
+    viewCount: 128000,
+    author: "Paradise Vlogs",
+  },
+  {
+    id: "v3",
+    slug: "le-morne-sunrise-hike",
+    title: "Le Morne Sunrise Hike — What to Expect",
+    description: "Trail conditions, guide requirements, and UNESCO site etiquette.",
+    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    thumbnail: img("1506905925346-21bda4d32df4"),
+    duration: "9:15",
+    category: "Adventure",
+    tags: ["hiking", "le-morne"],
+    viewCount: 31000,
+  },
+];
+
+export const shopProducts: ShopProduct[] = [
+  {
+    id: "s1",
+    slug: "mauritian-vanilla-tea",
+    name: "Bois Chéri Vanilla Tea (100 bags)",
+    description: "Iconic Mauritian black tea with vanilla — perfect souvenir.",
+    images: [img("1556679343-c7306c1976bc")],
+    price: 450,
+    currency: "MUR",
+    category: "Food & Tea",
+    seller: "Island Pantry",
+  },
+  {
+    id: "s2",
+    slug: "handwoven-basket",
+    name: "Handwoven Vacoa Basket",
+    description: "Traditional craft from Rodrigues artisans.",
+    images: [img("1582735689369-4dfb8fbb5067")],
+    price: 1200,
+    currency: "MUR",
+    category: "Crafts",
+    seller: "Crafts of Mauritius",
+  },
+  {
+    id: "s3",
+    slug: "rum-coffee-gift-set",
+    name: "Local Rum & Coffee Gift Set",
+    description: "Chamarel coffee + Pink Pigeon rum miniature — gift boxed.",
+    images: [img("1514432324607-a09d9b4aefdd")],
+    price: 1850,
+    currency: "MUR",
+    category: "Gifts",
+    seller: "Tropical Gifts MU",
+  },
+];
+
+export const taxiRoutes: TaxiRoute[] = [
+  {
+    id: "t1",
+    fromLocation: "SSR International Airport",
+    toLocation: "Grand Baie",
+    distanceKm: 72,
+    estimatedMinutes: 75,
+    dayFareMur: 2200,
+    nightFareMur: 2800,
+    notes: "Fixed fare common; agree before departure. Toll included.",
+    region: "North",
+  },
+  {
+    id: "t2",
+    fromLocation: "SSR International Airport",
+    toLocation: "Le Morne / Bel Ombre",
+    distanceKm: 55,
+    estimatedMinutes: 55,
+    dayFareMur: 1800,
+    nightFareMur: 2300,
+    region: "South-West",
+  },
+  {
+    id: "t3",
+    fromLocation: "Port Louis",
+    toLocation: "Flic en Flac",
+    distanceKm: 22,
+    estimatedMinutes: 35,
+    dayFareMur: 650,
+    nightFareMur: 850,
+    notes: "Metered taxis available; ~Rs 25–35/km typical.",
+    region: "West",
+  },
+  {
+    id: "t4",
+    fromLocation: "Grand Baie",
+    toLocation: "Trou d'Eau Douce (boat to Île aux Cerfs)",
+    distanceKm: 48,
+    estimatedMinutes: 55,
+    dayFareMur: 1400,
+    nightFareMur: 1750,
+    region: "East",
+  },
+];
+
+export const blogPosts: BlogPost[] = [
+  {
+    id: "b1",
+    slug: "best-beaches-mauritius",
+    title: "15 Best Beaches in Mauritius (2025 Guide)",
+    excerpt: "From Le Morne to Blue Bay — rankings by vibe, snorkelling, and crowds.",
+    coverImage: img("1507525428039-b5b6848e1f7a"),
+    author: "Editorial Team",
+    tags: ["beaches", "guide"],
+    publishedAt: "2025-03-01",
+  },
+  {
+    id: "b2",
+    slug: "luxury-honeymoon-mauritius",
+    title: "Luxury Honeymoon in Mauritius: Complete Guide",
+    excerpt: "Resorts, private dinners, helicopter tours, and spa picks.",
+    coverImage: img("1520250497591-112deb8e05a6"),
+    tags: ["honeymoon", "luxury"],
+    publishedAt: "2025-02-15",
+  },
+];
+
+export const trendingItems: TrendingItem[] = [
+  {
+    id: "tr1",
+    type: "destination",
+    title: "Le Morne Beach",
+    slug: "le-morne-beach",
+    image: img("1507525428039-b5b6848e1f7a"),
+    score: 98,
+    subtitle: "South-West",
+  },
+  {
+    id: "tr2",
+    type: "hotel",
+    title: "LUX* Le Morne",
+    slug: "lux-le-morne",
+    image: img("1566073771259-6a8506099945"),
+    score: 96,
+    subtitle: "Luxury Resort",
+  },
+  {
+    id: "tr3",
+    type: "vlog",
+    title: "7-Day Mauritius Itinerary",
+    slug: "7-day-mauritius-itinerary",
+    image: img("1488646953012-85cb44e25848"),
+    score: 94,
+    subtitle: "128K views",
+  },
+  {
+    id: "tr4",
+    type: "guide",
+    title: "Raj Kumar",
+    slug: "raj-local-guide",
+    image: img("1507003211169-0b1dd7228f2d"),
+    score: 91,
+    subtitle: "Verified Guide",
+  },
+  {
+    id: "tr5",
+    type: "activity",
+    title: "Underwater Waterfall Helicopter",
+    slug: "underwater-waterfall-helicopter",
+    image: img("1436491865332-7a61a109cc05"),
+    score: 90,
+    subtitle: "Adventure",
+  },
+];
+
+export function getDestinationBySlug(slug: string) {
+  return destinations.find((d) => d.slug === slug);
+}
+
+export function getHotelBySlug(slug: string) {
+  return hotels.find((h) => h.slug === slug);
+}
+
+export function getGuideBySlug(slug: string) {
+  return guides.find((g) => g.slug === slug);
+}
+
+export function getVlogBySlug(slug: string) {
+  return vlogs.find((v) => v.slug === slug);
+}
+
+export function getProductBySlug(slug: string) {
+  return shopProducts.find((p) => p.slug === slug);
+}
+
+================================================================================
+FILE: apps\web\src\lib\utils.ts
+================================================================================
+
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function formatMur(amount: number): string {
+  return new Intl.NumberFormat("en-MU", {
+    style: "currency",
+    currency: "MUR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export function formatUsdFromMur(mur: number, rate = 45): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(mur / rate);
+}
+
+================================================================================
+FILE: apps\web\src\types\index.ts
+================================================================================
+
+export type DestinationCategory =
+  | "beach"
+  | "waterfall"
+  | "hiking"
+  | "cultural"
+  | "resort"
+  | "island"
+  | "market"
+  | "nature_park"
+  | "nightlife";
+
+export interface Destination {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: DestinationCategory;
+  images: string[];
+  trailerUrl?: string;
+  trailerThumbnail?: string;
+  location: string;
+  region: string;
+  latitude: number;
+  longitude: number;
+  bestTimeToVisit?: string;
+  entryFee?: number;
+  familyFriendly: boolean;
+  luxury: boolean;
+  adventure: boolean;
+  romantic: boolean;
+  rating: number;
+  reviewCount: number;
+  trendingScore?: number;
+}
+
+export interface Hotel {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  images: string[];
+  trailerUrl?: string;
+  priceFrom: number;
+  priceTo?: number;
+  currency: string;
+  rating: number;
+  reviewCount: number;
+  amenities: string[];
+  beachfront: boolean;
+  luxury: boolean;
+  familyFriendly: boolean;
+  location: string;
+  region: string;
+  featured?: boolean;
+  bookingUrl?: string;
+}
+
+export interface Activity {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  images: string[];
+  trailerUrl?: string;
+  duration: string;
+  priceFrom: number;
+  location: string;
+  region: string;
+  rating: number;
+}
+
+export interface Restaurant {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  category: string;
+  images: string[];
+  cuisine: string[];
+  priceRange: string;
+  rating: number;
+  location: string;
+  region: string;
+}
+
+export interface Guide {
+  id: string;
+  slug: string;
+  displayName: string;
+  bio: string;
+  avatar?: string;
+  languages: string[];
+  specialties: string[];
+  hourlyRate: number;
+  dailyRate?: number;
+  currency: string;
+  rating: number;
+  reviewCount: number;
+  verified: boolean;
+  offlinePackUrl?: string;
+  offlinePackSize?: string;
+  whatsapp?: string;
+}
+
+export interface Vlog {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  videoUrl: string;
+  thumbnail: string;
+  duration: string;
+  category: string;
+  tags: string[];
+  viewCount: number;
+  author?: string;
+}
+
+export interface ShopProduct {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  images: string[];
+  price: number;
+  currency: string;
+  category: string;
+  seller?: string;
+}
+
+export interface TaxiRoute {
+  id: string;
+  fromLocation: string;
+  toLocation: string;
+  distanceKm?: number;
+  estimatedMinutes?: number;
+  dayFareMur: number;
+  nightFareMur?: number;
+  notes?: string;
+  region: string;
+}
+
+export interface BlogPost {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  coverImage?: string;
+  author?: string;
+  tags: string[];
+  publishedAt: string;
+}
+
+export interface TrendingItem {
+  id: string;
+  type: "destination" | "hotel" | "activity" | "guide" | "vlog";
+  title: string;
+  slug: string;
+  image: string;
+  score: number;
+  subtitle?: string;
+}
+
+export type FilterTags =
+  | "budget"
+  | "family"
+  | "luxury"
+  | "adventure"
+  | "romantic"
+  | "nightlife"
+  | "eco";
+
+================================================================================
+FILE: apps\web\tailwind.config.ts
+================================================================================
+
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  darkMode: ["class"],
+  content: ["./src/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        ocean: {
+          50: "#e8f4fc",
+          100: "#c5e4f7",
+          200: "#8ec8ef",
+          300: "#4aa8e0",
+          400: "#1a8bc4",
+          500: "#0d6e9e",
+          600: "#0a5579",
+          700: "#08425d",
+          800: "#062f42",
+          900: "#041d29",
+        },
+        emerald: {
+          island: "#10b981",
+          deep: "#047857",
+        },
+        sunset: {
+          DEFAULT: "#f97316",
+          light: "#fb923c",
+          dark: "#ea580c",
+        },
+        sand: {
+          DEFAULT: "#f5e6d3",
+          dark: "#e8d4bc",
+        },
+      },
+      fontFamily: {
+        display: ["var(--font-display)", "Georgia", "serif"],
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+      },
+      backgroundImage: {
+        "island-gradient":
+          "linear-gradient(135deg, #0d6e9e 0%, #10b981 50%, #f97316 100%)",
+        "glass": "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)",
+      },
+      boxShadow: {
+        glass: "0 8px 32px rgba(13, 110, 158, 0.12)",
+        luxury: "0 20px 60px rgba(0,0,0,0.08)",
+      },
+      animation: {
+        "fade-up": "fadeUp 0.6s ease-out forwards",
+        float: "float 6s ease-in-out infinite",
+      },
+      keyframes: {
+        fadeUp: {
+          "0%": { opacity: "0", transform: "translateY(24px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;
+
+================================================================================
+FILE: apps\web\tsconfig.json
+================================================================================
+
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+
+================================================================================
+FILE: docker-compose.yml
+================================================================================
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mauritius_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mauritius
+      POSTGRES_PASSWORD: mauritius_dev
+      POSTGRES_DB: mauritius_tourism
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: mauritius_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+
+================================================================================
+FILE: package.json
+================================================================================
+
+{
+  "name": "mauritius-tourism-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "db:migrate": "npm run migrate --workspace=packages/database",
+    "db:seed": "npm run seed --workspace=packages/database",
+    "docker:up": "docker compose up -d"
+  }
+}
+
+================================================================================
+FILE: packages\database\package.json
+================================================================================
+
+{
+  "name": "@mauritius/database",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "scripts": {
+    "migrate": "prisma migrate dev",
+    "generate": "prisma generate",
+    "seed": "tsx prisma/seed.ts",
+    "studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
+
+================================================================================
+FILE: packages\database\prisma\schema.prisma
+================================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  GUIDE
+  HOTEL_OWNER
+  ADMIN
+}
+
+enum DestinationCategory {
+  BEACH
+  WATERFALL
+  HIKING
+  CULTURAL
+  RESORT
+  ISLAND
+  MARKET
+  NATURE_PARK
+  NIGHTLIFE
+}
+
+enum TrendingType {
+  DESTINATION
+  HOTEL
+  ACTIVITY
+  RESTAURANT
+  GUIDE
+  VLOG
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  passwordHash  String?
+  image         String?
+  role          UserRole  @default(USER)
+  locale        String    @default("en")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  reviews       Review[]
+  bookmarks     Bookmark[]
+  itineraries   Itinerary[]
+  bookings      Booking[]
+  guideProfile  Guide?
+  notifications Notification[]
+  orders        ShopOrder[]
+}
+
+model Destination {
+  id              String              @id @default(cuid())
+  slug            String              @unique
+  title           String
+  titleFr         String?
+  description     String              @db.Text
+  category        DestinationCategory
+  images          String[]
+  trailerUrl      String?
+  trailerThumbnail String?
+  location        String
+  region          String
+  latitude        Float
+  longitude       Float
+  bestTimeToVisit String?
+  entryFee        Float?
+  duration        String?
+  familyFriendly  Boolean             @default(true)
+  luxury          Boolean             @default(false)
+  adventure       Boolean             @default(false)
+  romantic        Boolean             @default(false)
+  ecoTourism      Boolean             @default(false)
+  trendingScore   Int                 @default(0)
+  viewCount       Int                 @default(0)
+  seoTitle        String?
+  seoDescription  String?
+  published       Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  reviews         Review[]
+  bookmarks       Bookmark[]
+  nearbyHotels    Hotel[]             @relation("NearbyDestination")
+  activities      Activity[]
+  itineraryItems  ItineraryItem[]
+  trending        Trending[]
+  transportTips   TransportTip[]
+}
+
+model Hotel {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  name            String
+  description     String    @db.Text
+  images          String[]
+  trailerUrl      String?
+  priceFrom       Float
+  priceTo         Float?
+  currency        String    @default("MUR")
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
+  amenities       String[]
+  beachfront      Boolean   @default(false)
+  luxury          Boolean   @default(false)
+  familyFriendly  Boolean   @default(true)
+  location        String
+  region          String
+  latitude        Float
+  longitude       Float
+  bookingUrl      String?
+  featured        Boolean   @default(false)
+  sponsored       Boolean   @default(false)
+  trendingScore   Int       @default(0)
+  seoTitle        String?
+  seoDescription  String?
+  destinationId   String?
+  destination     Destination? @relation("NearbyDestination", fields: [destinationId], references: [id])
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  reviews         Review[]
+  bookmarks       Bookmark[]
+  bookings        Booking[]
+  trending        Trending[]
+}
+
+model Activity {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  title           String
+  description     String    @db.Text
+  category        String
+  images          String[]
+  trailerUrl      String?
+  duration        String
+  priceFrom       Float
+  currency        String    @default("MUR")
+  rating          Float     @default(0)
+  location        String
+  region          String
+  latitude        Float?
+  longitude       Float?
+  bookingUrl      String?
+  destinationId   String?
+  destination     Destination? @relation(fields: [destinationId], references: [id])
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  reviews         Review[]
+  bookings        Booking[]
+  trending        Trending[]
+}
+
+model Restaurant {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  name            String
+  description     String    @db.Text
+  category        String
+  images          String[]
+  cuisine         String[]
+  priceRange      String
+  rating          Float     @default(0)
+  location        String
+  region          String
+  latitude        Float
+  longitude       Float
+  openingHours    String?
+  reservationUrl  String?
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  reviews         Review[]
+  trending        Trending[]
+}
+
+model Guide {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id])
+  slug            String    @unique
+  displayName     String
+  bio             String    @db.Text
+  avatar          String?
+  languages       String[]
+  specialties     String[]
+  hourlyRate      Float
+  dailyRate       Float?
+  currency        String    @default("MUR")
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
+  verified        Boolean   @default(false)
+  offlinePackUrl  String?
+  offlinePackSize String?
+  whatsapp        String?
+  published       Boolean   @default(true)
+  trendingScore   Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  bookings        Booking[]
+  trending        Trending[]
+}
+model Vlog {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  title           String
+  description     String    @db.Text
+  videoUrl        String
+  thumbnail       String
+  duration        String
+  category        String
+  tags            String[]
+  viewCount       Int       @default(0)
+  author          String?
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  trending        Trending[]
+}
+
+model ShopProduct {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  name            String
+  description     String    @db.Text
+  images          String[]
+  price           Float
+  currency        String    @default("MUR")
+  category        String
+  stock           Int       @default(0)
+  seller          String?
+  featured        Boolean   @default(false)
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  orderItems      ShopOrderItem[]
+}
+
+model ShopOrder {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  status          String    @default("pending")
+  total           Float
+  currency        String    @default("MUR")
+  shippingAddress String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  items           ShopOrderItem[]
+}
+
+model ShopOrderItem {
+  id          String      @id @default(cuid())
+  orderId     String
+  order       ShopOrder   @relation(fields: [orderId], references: [id])
+  productId   String
+  product     ShopProduct @relation(fields: [productId], references: [id])
+  quantity    Int
+  price       Float
+}
+
+model TaxiRoute {
+  id              String    @id @default(cuid())
+  fromLocation    String
+  toLocation      String
+  distanceKm      Float?
+  estimatedMinutes Int?
+  dayFareMur      Float
+  nightFareMur    Float?
+  notes           String?
+  region          String
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model TransportTip {
+  id              String    @id @default(cuid())
+  title           String
+  content         String    @db.Text
+  type            String
+  destinationId   String?
+  destination     Destination? @relation(fields: [destinationId], references: [id])
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+}
+
+model Review {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  rating          Int
+  comment         String    @db.Text
+  destinationId   String?
+  destination     Destination? @relation(fields: [destinationId], references: [id])
+  hotelId         String?
+  hotel           Hotel?    @relation(fields: [hotelId], references: [id])
+  activityId      String?
+  activity        Activity? @relation(fields: [activityId], references: [id])
+  restaurantId    String?
+  restaurant      Restaurant? @relation(fields: [restaurantId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Bookmark {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  destinationId   String?
+  destination     Destination? @relation(fields: [destinationId], references: [id])
+  hotelId         String?
+  hotel           Hotel?    @relation(fields: [hotelId], references: [id])
+  createdAt       DateTime  @default(now())
+
+  @@unique([userId, destinationId])
+  @@unique([userId, hotelId])
+}
+
+model Itinerary {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  title           String
+  travelDays      Ints
+  budget          Float?
+  interests       String[]
+  aiGenerated     Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  items           ItineraryItem[]
+}
+
+model ItineraryItem {
+  id              String    @id @default(cuid())
+  itineraryId     String
+  itinerary       Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  dayNumber       Int
+  destinationId   String?
+  destination     Destination? @relation(fields: [destinationId], references: [id])
+  customTitle     String?
+  notes           String?
+  sortOrder       Int       @default(0)
+}
+
+model Blog {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  title           String
+  excerpt         String
+  content         String    @db.Text
+  coverImage      String?
+  author          String?
+  tags            String[]
+  seoTitle        String?
+  seoDescription  String?
+  published       Boolean   @default(true)
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Event {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  title           String
+  description     String    @db.Text
+  category        String
+  startDate       DateTime
+  endDate         DateTime?
+  location        String
+  region          String
+  image           String?
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+}
+
+model Trending {
+  id              String       @id @default(cuid())
+  type            TrendingType
+  score           Int
+  weekOf          DateTime
+  destinationId   String?
+  destination     Destination? @relation(fields: [destinationId], references: [id])
+  hotelId         String?
+  hotel           Hotel?       @relation(fields: [hotelId], references: [id])
+  activityId      String?
+  activity        Activity?    @relation(fields: [activityId], references: [id])
+  restaurantId    String?
+  restaurant      Restaurant?  @relation(fields: [restaurantId], references: [id])
+  guideId         String?
+  guide           Guide?       @relation(fields: [guideId], references: [id])
+  vlogId          String?
+  vlog            Vlog?        @relation(fields: [vlogId], references: [id])
+}
+
+model Booking {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  type            String
+  status          String    @default("pending")
+  hotelId         String?
+  hotel           Hotel?    @relation(fields: [hotelId], references: [id])
+  activityId      String?
+  activity        Activity? @relation(fields: [activityId], references: [id])
+  guideId         String?
+  guide           Guide?    @relation(fields: [guideId], references: [id])
+  startDate       DateTime?
+  endDate         DateTime?
+  totalAmount     Float?
+  currency        String    @default("MUR")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Notification {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  title           String
+  message         String
+  read            Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+}
+
+model AdPlacement {
+  id              String    @id @default(cuid())
+  title           String
+  imageUrl        String
+  linkUrl         String
+  placement       String
+  active          Boolean   @default(true)
+  startDate       DateTime?
+  endDate         DateTime?
+  clickCount      Int       @default(0)
+  createdAt       DateTime  @default(now())
+}
+
+model AnalyticsEvent {
+  id              String    @id @default(cuid())
+  eventType       String
+  entityType      String?
+  entityId        String?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+}
+
+================================================================================
+FILE: packages\database\src\index.ts
+================================================================================
+
+export { PrismaClient } from "@prisma/client";
+
+================================================================================
+FILE: README.md
+================================================================================
+
+# Mauritius Tourism Guide Platform
+
+Premium digital tourism ecosystem for Mauritius — destinations, hotels, activities, AI itineraries, local guides, vlogs, taxi fares, marketplace, and offline guides.
+
+## Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js 15, React, TypeScript, Tailwind CSS, Framer Motion, ShadCN-style UI |
+| Backend | NestJS, PostgreSQL, Prisma, Redis |
+| Auth | Auth.js (NextAuth) / JWT |
+| Maps | Mapbox / Google Maps |
+| Media | Cloudinary |
+| Hosting | Vercel (web), Supabase/Railway (DB) |
+
+## Project structure
+
+```
+mauritius-tourism-platform/
+├── apps/
+│   ├── web/          # Next.js 15 frontend + API routes
+│   └── api/          # NestJS REST API
+├── packages/
+│   └── database/     # Prisma schema & client
+├── docker-compose.yml
+└── README.md
+```
+
+## Quick start
+
+### Prerequisites
+
+- Node.js 20+
+- Docker (optional, for PostgreSQL + Redis)
+- pnpm or npm
+
+### 1. Install dependencies
+
+```bash
+cd mauritius-tourism-platform
+npm install
+cd apps/web && npm install
+cd ../api && npm install
+cd ../../packages/database && npm install
+```
+
+### 2. Environment
+
+Copy and fill env files:
+
+```bash
+cp apps/web/.env.example apps/web/.env.local
+cp apps/api/.env.example apps/api/.env
+```
+
+### 3. Database
+
+```bash
+docker compose up -d
+cd packages/database
+npx prisma migrate dev
+npx prisma db seed
+```
+
+### 4. Run development
+
+```bash
+# Terminal 1 — Web (port 3000)
+cd apps/web && npm run dev
+
+# Terminal 2 — API (port 4000)
+cd apps/api && npm run start:dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+## Features
+
+- **Explore**: Destinations, beaches, hotels, activities, restaurants
+- **Trending**: Popular places, hotels, guides this week
+- **Trailers**: Video previews for destinations & hotels
+- **Shop**: Local crafts, souvenirs, spices (marketplace)
+- **Guides**: Book local tour guides; offline guide downloads
+- **Vlogs**: Travel vlogs & how-to videos (taxis, etiquette, routes)
+- **Transport**: Taxi fare calculator, routes, bus info
+- **AI Trip Planner**: Budget + days + interests → full itinerary
+- **User dashboard**: Saved places, itineraries, bookings
+- **Admin**: CMS for destinations, hotels, ads, analytics
+
+## Pages
+
+| Route | Description |
+|-------|-------------|
+| `/` | Homepage |
+| `/destinations` | All destinations |
+| `/destinations/[slug]` | Destination detail + trailer |
+| `/hotels` | Hotel listings |
+| `/hotels/[slug]` | Hotel detail |
+| `/activities` | Tours & activities |
+| `/restaurants` | Dining |
+| `/trending` | Trending places & hotels |
+| `/trailers` | Place video trailers |
+| `/shop` | Local marketplace |
+| `/guides` | Tour guides |
+| `/guides/offline` | Offline guide packs |
+| `/vlogs` | Travel vlogs |
+| `/transport/taxis` | Taxi fares & tips |
+| `/itinerary` | Trip builder |
+| `/blog` | Travel guides (SEO) |
+| `/about` | About Mauritius |
+| `/contact` | Contact & WhatsApp |
+| `/dashboard` | User account |
+| `/admin` | Admin panel |
+
+## License
+
+Proprietary — Mauritius Tourism Platform.
+
+================================================================================
+END OF MERGE — 75 FILES INCLUDED
+================================================================================
